@@ -3,114 +3,160 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
 <style>
-/* Layout: barra de control fija arriba, grilla de tarjetas por jugador (marcador de cancha), bloques y registro abajo */
+/* Layout: barra de control + selector de métrica fijos arriba; grilla compacta tipo tablero de banco de suplentes con los 17 jugadores; detalle por jugador en panel superpuesto */
 :root{
   --bg:#F3F6F2; --surface:#FFFFFF; --line:#D5DDD6; --fg:#0F1A14; --muted:#5B6B61;
-  --accent:#0A7A52; --accent-fg:#FFFFFF; --ok:#13804F; --warn:#B26A00; --bad:#B42318; --chip:#E7EEE9;
+  --accent:#0A7A52; --accent-fg:#FFFFFF; --ok:#13804F; --warn:#B26A00; --bad:#B42318; --chip:#E7EEE9; --bar:#0A7A52; --barbg:#E2EAE4;
   --f-num:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
   --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
   --f-mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#0C1210; --surface:#151E1A; --line:#26332C; --fg:#E7EFEA; --muted:#93A69A;
-  --accent:#3FD49B; --accent-fg:#06110C; --ok:#4ADE96; --warn:#F5B547; --bad:#FF7A6B; --chip:#1E2A24; color-scheme:dark}}
+  --accent:#3FD49B; --accent-fg:#06110C; --ok:#4ADE96; --warn:#F5B547; --bad:#FF7A6B; --chip:#1E2A24; --bar:#3FD49B; --barbg:#22302A; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0C1210; --surface:#151E1A; --line:#26332C; --fg:#E7EFEA; --muted:#93A69A;
-  --accent:#3FD49B; --accent-fg:#06110C; --ok:#4ADE96; --warn:#F5B547; --bad:#FF7A6B; --chip:#1E2A24; color-scheme:dark}
+  --accent:#3FD49B; --accent-fg:#06110C; --ok:#4ADE96; --warn:#F5B547; --bad:#FF7A6B; --chip:#1E2A24; --bar:#3FD49B; --barbg:#22302A; color-scheme:dark}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.4}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.35}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
-.wrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px))}
+@media (min-width:600px){.wrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}}
 header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
-.bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding-block:12px}
-.brand{font-family:var(--f-num);font-weight:700;font-size:26px;letter-spacing:.02em;margin-right:auto;display:flex;align-items:baseline;gap:10px}
-.brand small{font-family:var(--f-body);font-weight:500;font-size:13px;color:var(--muted);letter-spacing:0}
-button,select{font:inherit;font-weight:600;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:9px 14px;min-height:42px;cursor:pointer}
+.row{display:flex;align-items:center;gap:8px;padding-block:8px}
+.brand{font-family:var(--f-num);font-weight:700;font-size:24px;letter-spacing:.02em;white-space:nowrap}
+.scroller{display:flex;gap:8px;align-items:center;overflow-x:auto;scrollbar-width:none;min-width:0;flex:1;padding-block:2px}
+.scroller::-webkit-scrollbar{display:none}
+button,select{font:inherit;font-weight:600;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:7px 12px;min-height:40px;cursor:pointer;white-space:nowrap;flex:none}
 button.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
-button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
-button:disabled{opacity:.45;cursor:default}
-.ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.ctl label{font-size:13px;color:var(--muted);font-weight:500}
-main{display:grid;gap:22px;padding-block:18px 40px}
-.notice{border:1px solid var(--line);border-left:4px solid var(--warn);background:var(--surface);border-radius:10px;padding:12px 14px;max-width:75ch}
-.notice b{font-weight:600}
-.blockline{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:baseline}
-.blockline h2{font-family:var(--f-num);font-size:22px;margin:0;font-weight:600}
-.blockline .t{font-family:var(--f-num);font-size:22px;font-variant-numeric:tabular-nums;color:var(--accent)}
-.muted{color:var(--muted)}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;grid-template-columns:minmax(0,1fr);gap:10px;min-width:0}
-.card>*{min-width:0}
-.card.stale{border-color:var(--warn)}
-.head{display:flex;gap:8px;align-items:center}
-.head input{flex:1;min-width:0;width:0;font:inherit;font-family:var(--f-num);font-size:22px;font-weight:600;border:0;border-bottom:1px dashed var(--line);background:transparent;color:var(--fg);padding:2px 0}
-.chip{font-size:12px;font-weight:600;border-radius:999px;padding:3px 9px;background:var(--chip);white-space:nowrap}
-.chip.ok{color:var(--ok)} .chip.warn{color:var(--warn)} .chip.bad{color:var(--bad)}
-.big{display:flex;align-items:baseline;gap:6px}
-.big .v{font-family:var(--f-num);font-weight:700;font-size:58px;line-height:1;font-variant-numeric:tabular-nums}
-.big .u{font-size:15px;color:var(--muted)}
-.mets{display:grid;grid-template-columns:repeat(2,1fr);gap:8px 12px}
-.met .l{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
-.met .v{font-family:var(--f-num);font-size:26px;font-weight:600;font-variant-numeric:tabular-nums}
-.met .v small{font-size:14px;color:var(--muted);font-weight:500}
-.foot{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--muted);flex-wrap:wrap}
-.foot button{min-height:32px;padding:4px 10px;font-size:12px}
-.empty{background:var(--surface);border:1px dashed var(--line);border-radius:14px;padding:22px;display:grid;gap:8px;max-width:75ch}
+button:focus-visible,select:focus-visible,input:focus-visible,.tile:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.lbl{font-size:13px;color:var(--muted);white-space:nowrap}
+.metrics{border-top:1px solid var(--line)}
+.mchip{border-radius:999px;min-height:36px;padding:6px 14px;background:var(--chip);border-color:transparent;font-weight:600}
+.mchip[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg)}
+.mchip.post{color:var(--muted);background:transparent;border:1px dashed var(--line)}
+.mchip.post small{font-weight:500;font-size:11px;margin-left:4px}
+main{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;padding-block:12px 40px}
+main>*{min-width:0}
+.notice{border:1px solid var(--line);border-left:4px solid var(--warn);background:var(--surface);border-radius:10px;padding:10px 12px;max-width:75ch}
+.summary{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px}
+.summary .bk{font-family:var(--f-num);font-size:22px;font-weight:600}
+.summary .t{font-family:var(--f-num);font-size:22px;font-variant-numeric:tabular-nums;color:var(--accent)}
+.summary .s{font-size:14px;color:var(--muted)}
+.summary b{color:var(--fg);font-weight:600}
+.mnote{font-size:13px;color:var(--muted);max-width:80ch;margin:0}
+.board{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}
+@media (min-width:700px){.board{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 10px 9px;display:grid;gap:3px;min-width:0;text-align:left;cursor:pointer;font:inherit;color:inherit;min-height:0}
+.tile.bad{border-color:var(--bad)}
+.tile .top{display:flex;align-items:center;gap:6px;min-width:0}
+.dot{width:9px;height:9px;border-radius:50%;flex:none;background:var(--muted)}
+.dot.ok{background:var(--ok)} .dot.warn{background:var(--warn)} .dot.bad{background:var(--bad)}
+.tile .nm{font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.tile .val{font-family:var(--f-num);font-weight:700;font-size:clamp(26px,7.5vw,40px);line-height:1;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tile .val small{font-size:.42em;font-weight:500;color:var(--muted);margin-left:2px}
+.tile .bar{height:4px;background:var(--barbg);border-radius:2px;overflow:hidden}
+.tile .bar i{display:block;height:100%;background:var(--bar);width:0;transition:width .4s}
+.tile .st{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile .st.warn{color:var(--warn)} .tile .st.bad{color:var(--bad)}
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:14px;padding:18px;display:grid;gap:8px;max-width:75ch}
 .empty h3{margin:0;font-family:var(--f-num);font-size:22px}
 .empty ol{margin:0;padding-left:20px;display:grid;gap:4px}
 section h2{font-family:var(--f-num);font-size:22px;font-weight:600;margin:0 0 8px}
 .tablebox{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px}
 table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:14px}
-th,td{text-align:right;padding:8px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+th,td{text-align:right;padding:7px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
 th:first-child,td:first-child{text-align:left}
 th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
 details{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
 summary{cursor:pointer;font-weight:600}
 #log{font-family:var(--f-mono);font-size:12px;white-space:pre-wrap;word-break:break-all;max-height:260px;overflow:auto;margin:8px 0 0;color:var(--muted)}
-.note{font-size:13px;color:var(--muted);max-width:75ch}
-@media (prefers-reduced-motion:no-preference){.flash{animation:fl .6s ease-out}@keyframes fl{from{color:var(--accent)}}}
+.note{font-size:13px;color:var(--muted);max-width:80ch}
+/* panel de detalle */
+.ov{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;padding:0 max(0px,env(safe-area-inset-right,0px)) 0 max(0px,env(safe-area-inset-left,0px))}
+@media (min-width:700px){.ov{align-items:center}}
+.sheet{background:var(--surface);color:var(--fg);width:100%;max-width:520px;border-radius:16px 16px 0 0;padding:16px max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:grid;gap:12px;max-height:88vh;overflow:auto}
+@media (min-width:700px){.sheet{border-radius:16px}}
+.sheet .hd{display:flex;gap:8px;align-items:center}
+.sheet input{flex:1;min-width:0;width:0;font:inherit;font-family:var(--f-num);font-size:26px;font-weight:600;border:0;border-bottom:1px dashed var(--line);background:transparent;color:var(--fg);padding:2px 0}
+.chip{font-size:12px;font-weight:600;border-radius:999px;padding:3px 9px;background:var(--chip);white-space:nowrap}
+.chip.ok{color:var(--ok)} .chip.warn{color:var(--warn)} .chip.bad{color:var(--bad)}
+.mets{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 14px}
+.met .l{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.met .v{font-family:var(--f-num);font-size:28px;font-weight:600;font-variant-numeric:tabular-nums}
+.met .v small{font-size:14px;color:var(--muted);font-weight:500}
+.met.na .v{color:var(--muted);font-size:16px;font-family:var(--f-body);font-weight:500}
+.sheet .ft{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+@media (max-width:599px){
+  .tile{padding:6px 8px 7px;gap:2px;border-radius:10px}
+  .tile .val{font-size:clamp(22px,6.6vw,30px)}
+  .tile .nm{font-size:12px}
+  .tile .st{font-size:10px}
+  .board{gap:6px}
+  main{gap:12px;padding-block:10px 40px}
+  .mnote{font-size:12px;margin:0}
+}
+@media (prefers-reduced-motion:reduce){.tile .bar i{transition:none}}
 </style>
 
-<header><div class="wrap bar">
-  <div class="brand">TrakLive <small id="sub">PLAYERTEK en vivo</small></div>
-  <div class="ctl">
-    <button class="primary" id="btnAdd">+ Agregar pod</button>
-    <button id="btnAddAll" title="Muestra todos los dispositivos Bluetooth cercanos">Buscar sin filtro</button>
-    <label for="selInt">Cada</label>
-    <select id="selInt"><option value="3">3 s</option><option value="5" selected>5 s</option><option value="10">10 s</option></select>
-    <button id="btnBlock">Nuevo bloque</button>
-    <button id="btnCsv">Exportar CSV</button>
-    <button id="btnDemo">Demo</button>
+<header>
+  <div class="wrap row">
+    <div class="brand">TrakLive</div>
+    <div class="scroller">
+      <button class="primary" id="btnAdd">+ Agregar pod</button>
+      <button id="btnAddAll">Buscar sin filtro</button>
+      <span class="lbl">Cada</span>
+      <select id="selInt" aria-label="Frecuencia de lectura"><option value="3">3 s</option><option value="5">5 s</option><option value="10">10 s</option></select>
+      <button id="btnBlock">Nuevo bloque</button>
+      <button id="btnSort" aria-pressed="false">Orden: llegada</button>
+      <button id="btnCsv">Exportar CSV</button>
+      <button id="btnDemo">Demo</button>
+    </div>
   </div>
-</div></header>
+  <div class="wrap metrics"><div class="scroller" id="mbar" role="group" aria-label="Métrica a mostrar"></div></div>
+</header>
 
 <main class="wrap">
-  <div class="notice" id="noBle" hidden><b>Este navegador no tiene Bluetooth.</b> En iPhone o iPad abrí esta página con la app gratuita <b>Bluefy</b> (Safari no permite Bluetooth). En Android o computadora usá Chrome. Mientras tanto podés probar con <b>Demo</b>.</div>
+  <div class="notice" id="noBle" hidden><b>Este navegador no tiene Bluetooth.</b> En iPhone o iPad abrí esta página con <b>Bluefy</b>. En Android o computadora usá Chrome. Podés probar con <b>Demo</b>.</div>
 
-  <div class="blockline"><h2 id="blkName">Bloque 1</h2><span class="t" id="blkTime">00:00</span><span class="muted" id="blkInfo">Las métricas de cada tarjeta cuentan desde el inicio del bloque.</span></div>
+  <div class="summary">
+    <span class="bk" id="blkName">Bloque 1</span><span class="t" id="blkTime">00:00</span>
+    <span class="s" id="teamAvg"></span>
+    <span class="s" id="gpsCount"></span>
+  </div>
+  <p class="mnote" id="mnote"></p>
 
-  <div class="grid" id="grid"></div>
+  <div class="board" id="board"></div>
   <div class="empty" id="empty">
     <h3>Sin pods conectados</h3>
     <ol>
-      <li>Prendé el pod y esperá que tome GPS.</li>
-      <li>Tocá <b>+ Agregar pod</b> y elegí el <b>RON-POD</b> de la lista. Repetí con cada jugador.</li>
-      <li>Tocá el nombre en la tarjeta para escribir el del jugador.</li>
+      <li>Borrá <b>Settings.dat</b> del pod y prendelo una sola vez.</li>
+      <li>Dejalo afuera unos minutos para que tome GPS.</li>
+      <li>Tocá <b>+ Agregar pod</b> y elegí <b>PlayTEK</b> o <b>RON-POD</b>. Repetí con cada jugador.</li>
+      <li>Tocá la tarjeta para ponerle el nombre del jugador.</li>
     </ol>
-    <span class="muted">¿Sin pods a mano? <b>Demo</b> carga tres jugadores simulados.</span>
+    <span class="note"><b>Demo</b> carga 17 jugadores simulados para ver la pantalla completa.</span>
   </div>
 
   <section>
     <h2>Bloques</h2>
-    <div class="tablebox"><table id="tblBlocks"><thead><tr><th>Jugador</th><th>Bloque</th><th>Duración</th><th>Distancia m</th><th>m/min</th><th>Sprint m</th><th>Impactos</th></tr></thead><tbody></tbody></table></div>
+    <div class="tablebox"><table id="tblBlocks"><thead><tr><th>Jugador</th><th>Bloque</th><th>Duración</th><th>Dist. m</th><th>m/min</th><th>HSR m*</th><th>Vel. máx</th><th>Impactos</th></tr></thead><tbody></tbody></table></div>
     <p class="note" id="noBlocks">Al tocar <b>Nuevo bloque</b> se cierra el bloque actual y queda registrado acá.</p>
   </section>
 
   <details><summary>Registro técnico</summary><pre id="log"></pre></details>
 
-  <p class="note">Vel. máx. es la máxima de toda la sesión del pod (el pod no la informa por bloque). La unidad de velocidad (mm/s) está deducida de los datos y conviene validarla con una sesión conocida. m/min (60 s) usa la distancia de los últimos 60 segundos.</p>
+  <p class="note">* HSR estimado por la app a partir de la distancia entre lecturas (velocidad media ≥ 18 km/h en cada intervalo); puede quedarse corto en esfuerzos de pocos segundos. Vel. máx. es la de toda la sesión del pod. Impactos usa el umbral propio del pod. Acc, Dec y Player Load no llegan por Bluetooth: se calculan después con los archivos del pod por USB.</p>
 </main>
+
+<div class="ov" id="ov" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-label="Detalle del jugador">
+    <div class="hd"><input id="dName" aria-label="Nombre del jugador"><span class="chip" id="dChip"></span></div>
+    <div class="mets" id="dMets"></div>
+    <div class="ft"><span id="dInfo"></span><span style="display:flex;gap:8px"><button id="dRemove" type="button">Quitar pod</button><button class="primary" id="dClose" type="button">Listo</button></span></div>
+  </div>
+</div>
 
 <script>
 (()=>{
@@ -120,9 +166,23 @@ const CH_DATA='d973f3e1-b19e-11e2-9e96-0800200c9a68';
 const CH_CMD='d973f3e1-b19e-11e2-9e96-0800200c9a69';
 const CH_ID='d973f3e1-b19e-11e2-9e96-0800200c9a6a';
 const CMD_SNAP=new TextEncoder().encode('AAAAAAF00990000');
+const HSR_KMH=18;
 const $=s=>document.querySelector(s);
 
-/* ---------- Protocolo: resumen de sesiones ---------- */
+/* ---------- Métricas ---------- */
+const METRICS=[
+  {k:'dist',l:'Dist. total',u:'m',d:0},
+  {k:'mpm',l:'Mts x min',u:'m/min',d:0},
+  {k:'hsr',l:'HSR +18 km/h',u:'m',d:0,est:true},
+  {k:'acc',l:'Acc +4 m/s²',post:true},
+  {k:'dec',l:'Dec −4 m/s²',post:true},
+  {k:'vmax',l:'Vel. máx',u:'km/h',d:1},
+  {k:'imp',l:'Impactos',u:'',d:0},
+  {k:'pl',l:'Player Load',post:true},
+];
+const NOTES={dist:'Distancia recorrida en el bloque.',mpm:'Distancia del bloque dividida por los minutos del bloque. Debajo, en cada tarjeta: el ritmo de los últimos 60 s.',hsr:'HSR estimado: distancia de los intervalos entre lecturas con velocidad media de 18 km/h o más.',vmax:'Velocidad máxima de toda la sesión del pod.',imp:'Impactos del bloque según el umbral propio del pod.'};
+
+/* ---------- Protocolo ---------- */
 function u16le(b,o){return b[o]|(b[o+1]<<8)}
 function u32le(b,o){return (b[o]|(b[o+1]<<8)|(b[o+2]<<16)|(b[o+3]<<24))>>>0}
 function i32le(b,o){return b[o]|(b[o+1]<<8)|(b[o+2]<<16)|(b[o+3]<<24)}
@@ -137,142 +197,175 @@ function parseSnapshots(buf){
 const kmh=raw=>raw*0.0036;
 
 /* ---------- Estado ---------- */
-const pods=new Map(); // id -> pod
+const pods=new Map(); let order=0;
 let block={n:1,start:Date.now()}; const closedBlocks=[]; const history=[];
-let intervalS=5; let wakeLock=null;
+let metric='dist', sortByValue=false, openKey=null, wakeLock=null;
 const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 const names=store.get('traklive.names',{});
-intervalS=store.get('traklive.int',5); $('#selInt').value=String(intervalS);
+let intervalS=store.get('traklive.int',3); $('#selInt').value=String(intervalS);
+metric=store.get('traklive.metric','dist'); if(!METRICS.find(m=>m.k===metric&&!m.post))metric='dist';
 
-function log(...a){const el=$('#log'); const line=new Date().toLocaleTimeString()+'  '+a.join(' '); el.textContent=(line+'\n'+el.textContent).slice(0,20000);}
+function log(...a){const el=$('#log'); el.textContent=(new Date().toLocaleTimeString()+'  '+a.join(' ')+'\n'+el.textContent).slice(0,30000);}
 const hex=u=>Array.from(u,x=>x.toString(16).padStart(2,'0')).join('');
 
-/* ---------- Pod real (Web Bluetooth) ---------- */
+/* ---------- Pod real ---------- */
 class Pod{
-  constructor(device){this.device=device;this.key=device.id;this.id=null;this.status='Conectando';this.snap=null;this.base=null;this.samples=[];this.buf=new Uint8Array(0);this.pending=null;this.lastOk=0;this.retry=0;this.removed=false;this.timer=null;
+  constructor(device){this.device=device;this.key=device.id;this.order=order++;this.id=null;this.status='Conectando';this.snap=null;this.base=null;this.samples=[];this.buf=new Uint8Array(0);this.pending=null;this.lastOk=0;this.retry=0;this.removed=false;this.timer=null;this.hsr=0;this.disc=0;
     device.addEventListener('gattserverdisconnected',()=>this.onDisc());}
+  label(){return names[this.id]||this.device.name||'Pod'}
   async connect(){
     this.status=this.lastOk?'Reconectando':'Conectando'; render();
-    const withTimeout=(p,ms)=>Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(new Error('tiempo de espera agotado')),ms))]);
-    const server=await withTimeout(this.device.gatt.connect(),12000);
-    const svc=await withTimeout(server.getPrimaryService(SVC),8000);
+    const to=(p,ms)=>Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(new Error('tiempo de espera agotado')),ms))]);
+    const server=await to(this.device.gatt.connect(),12000);
+    const svc=await to(server.getPrimaryService(SVC),8000);
     if(this.data&&this.handler)this.data.removeEventListener('characteristicvaluechanged',this.handler);
     this.data=await svc.getCharacteristic(CH_DATA);
     this.cmd=await svc.getCharacteristic(CH_CMD);
     if(!this.id){ try{const idc=await svc.getCharacteristic(CH_ID); const v=await idc.readValue(); this.id=new TextDecoder().decode(v).replace(/\0/g,'').trim();}catch(e){this.id=this.device.id} }
     this.handler=this.handler||(e=>{const v=e.target.value; this.onPacket(new Uint8Array(v.buffer.slice(v.byteOffset,v.byteOffset+v.byteLength)));});
     this.data.addEventListener('characteristicvaluechanged',this.handler);
-    await withTimeout(this.data.startNotifications(),8000);
+    await to(this.data.startNotifications(),8000);
     this.status='Conectado'; this.retry=0; this.reconnecting=false; log(this.label(),'conectado, id',this.id); render();
-    this.schedule(0);
+    this.schedule(200);
   }
-  label(){return names[this.id]||this.device.name||'Pod'}
   schedule(ms){clearTimeout(this.timer); if(!this.removed) this.timer=setTimeout(()=>this.poll(),ms);}
   async poll(){
-    if(this.removed)return;
-    if(!this.device.gatt.connected){return}
+    if(this.removed||!this.device.gatt.connected)return;
     if(!this.pending){
-      this.buf=new Uint8Array(0);
-      this.pending=setTimeout(()=>{ if(this.buf.length>=36){this.finish()} this.pending=null; },2500);
+      this.buf=new Uint8Array(0); this.t0=Date.now(); this.armTimeout(3000);
       try{ if(this.cmd.writeValueWithoutResponse) await this.cmd.writeValueWithoutResponse(CMD_SNAP); else await this.cmd.writeValue(CMD_SNAP); }
       catch(e){ try{await this.cmd.writeValue(CMD_SNAP)}catch(e2){log(this.label(),'error al pedir datos',e2.message)} }
     }
     this.schedule(intervalS*1000);
   }
+  armTimeout(ms){clearTimeout(this.pending); this.pending=setTimeout(()=>{ this.pending=null; if(this.buf.length>=36){log(this.label(),'respuesta incompleta',this.buf.length,'de',expectedLen(this.buf),'bytes'); this.finish(true);} },ms);}
   onPacket(p){
+    const first=this.buf.length===0;
     const nb=new Uint8Array(this.buf.length+p.length); nb.set(this.buf); nb.set(p,this.buf.length); this.buf=nb;
-    if(this.buf.length>=expectedLen(this.buf)) this.finish();
+    const exp=expectedLen(this.buf);
+    if(first&&isFinite(exp)) this.armTimeout(Math.min(20000,2000+exp/20*30)); // más sesiones guardadas = respuesta más larga
+    if(this.buf.length>=exp) this.finish(false);
   }
-  finish(){ if(this.pending){clearTimeout(this.pending);this.pending=null} const buf=this.buf; this.buf=new Uint8Array(0); ingest(this,buf); }
-  onDisc(){ if(this.removed||this.reconnecting)return; this.reconnecting=true; this.disc=(this.disc||0)+1;
+  finish(partial){ if(this.pending){clearTimeout(this.pending);this.pending=null} const buf=this.buf; this.buf=new Uint8Array(0);
+    this.respMs=Date.now()-this.t0; this.respN=(buf[2]<<8)|buf[3]; ingest(this,buf,partial); }
+  onDisc(){ if(this.removed||this.reconnecting)return; this.reconnecting=true; this.disc++;
     this.status='Reconectando'; log(this.label(),'se desconectó, reintentando'); render(); clearTimeout(this.pending); this.pending=null; clearTimeout(this.timer);
-    const attempt=()=>{ if(this.removed)return;
-      try{this.device.gatt.disconnect()}catch(e){}
-      this.connect().catch(e=>{ log(this.label(),'reconexión falló:',e.message); const wait=Math.min(1000*2**this.retry,8000); this.retry++; this.status='Reconectando'; render(); setTimeout(attempt,wait); }); };
+    const attempt=()=>{ if(this.removed)return; try{this.device.gatt.disconnect()}catch(e){}
+      this.connect().catch(e=>{ log(this.label(),'reconexión falló:',e.message); const w=Math.min(1000*2**this.retry,8000); this.retry++; render(); setTimeout(attempt,w); }); };
     setTimeout(attempt,800); }
   remove(){this.removed=true;clearTimeout(this.timer);clearTimeout(this.pending);try{this.device.gatt.disconnect()}catch(e){}}
 }
 
-/* ---------- Pod simulado (mismo formato de bytes) ---------- */
+/* ---------- Pod simulado (mismo formato de bytes que el real) ---------- */
+const POS=['Pilar','Hooker','Pilar','2ª línea','2ª línea','Ala','Ala','Octavo','Medio scrum','Apertura','Wing','Centro','Centro','Wing','Fullback','Suplente','Suplente'];
 class FakePod{
-  constructor(i){this.key='demo'+i;this.id='DEMO-'+(1001+i);this.device={name:'RON-POD'};this.status='Conectado';this.snap=null;this.base=null;this.samples=[];this.removed=false;
-    this.sess=12+i;this.d=0;this.spr=0;this.imp=0;this.top=0;this.valid=0;this.pace=[1.6,2.1,1.2][i%3];this.timer=null;}
-  async connect(){render();this.schedule(300)}
-  label(){return names[this.id]||['Juan Pérez','Tomás Ruiz','Nico Díaz'][this.key.slice(4)%3]}
+  constructor(i){this.key='demo'+i;this.order=order++;this.i=i;this.id='DEMO-'+String(i+1).padStart(2,'0');this.device={name:'PlayTEK'};this.status='Conectado';this.snap=null;this.base=null;this.samples=[];this.removed=false;this.hsr=0;this.disc=0;
+    this.sess=40+i;this.d=0;this.imp=0;this.top=0;this.valid=0;this.gpsAt=Date.now()+(i===16?25000:i%5===0?6000:0);
+    this.pace=i<8?1.5:2.0; this.timer=null;}
+  async connect(){render();this.schedule(200+this.i*60)}
+  label(){return names[this.id]||(this.i+1)+' · '+POS[this.i]}
   schedule(ms){clearTimeout(this.timer); if(!this.removed) this.timer=setTimeout(()=>this.poll(),ms);}
   poll(){
-    const dt=intervalS; const v=Math.max(0,this.pace+(Math.random()-.45)*1.4+(Math.random()<.12?3.5:0));
-    this.d+=v*dt; if(v>5.5)this.spr+=v*dt*0.7; if(Math.random()<.06)this.imp++; this.top=Math.max(this.top,Math.round(v*1000)); this.valid+=dt*10;
-    const recs=[[this.sess-2,3200,90,4,6100],[this.sess-1,2800,60,2,5800],[this.sess,Math.round(this.d),Math.round(this.spr),this.imp,this.top]];
-    let L=recs.length*32+4; if(L%20)L+=20-L%20; const b=new Uint8Array(L); b[0]=0;b[1]=this.sess;b[2]=0;b[3]=recs.length;
+    const dt=intervalS, gps=Date.now()>=this.gpsAt;
+    if(gps){ const burst=Math.random()<.14?3.8+Math.random()*2.5:0; const v=Math.max(0,this.pace+(Math.random()-.5)*1.4+burst);
+      this.d+=v*dt; if(Math.random()<(this.i<8?.12:.05))this.imp++; this.top=Math.max(this.top,Math.round((v+0.8)*1000)); this.valid+=dt*10; }
+    const recs=[[this.sess-1,3100,80,3,6400,30000],[this.sess,Math.round(this.d),0,this.imp,this.top,this.valid]];
+    let L=recs.length*32+4; if(L%20)L+=20-L%20; const b=new Uint8Array(L); b[0]=0;b[1]=this.sess&255;b[2]=0;b[3]=recs.length;
     recs.forEach((r,k)=>{const o=4+32*k; b[o]=r[0]>>8;b[o+1]=r[0]&255; const w16=(x,v)=>{b[o+x]=v&255;b[o+x+1]=(v>>8)&255}; const w32=(x,v)=>{for(let j=0;j<4;j++)b[o+x+j]=(v>>>(8*j))&255};
-      w16(2,r[1]);w16(4,r[2]);w16(6,r[3]);w16(8,r[4]);w32(10,k==2?this.valid:30000);w32(14,93000000+k*100000);w32(18,-346000000);w32(22,-588900000);w32(26,k==2?this.valid:30000);});
-    // se entrega en paquetes de 20 bytes, como el pod real
-    let buf=new Uint8Array(0); for(let o=0;o<b.length;o+=20){const p=b.subarray(o,o+20); const nb=new Uint8Array(buf.length+p.length); nb.set(buf); nb.set(p,buf.length); buf=nb; if(buf.length>=expectedLen(buf))break;}
-    ingest(this,buf); this.schedule(intervalS*1000);
+      w16(2,r[1]);w16(4,r[2]);w16(6,r[3]);w16(8,r[4]);w32(10,r[5]);w32(14,93000000);w32(18,-344370000);w32(22,-587940000);w32(26,r[5]);});
+    this.respMs=40; this.respN=recs.length; ingest(this,b,false); this.schedule(intervalS*1000);
   }
   remove(){this.removed=true;clearTimeout(this.timer)}
 }
 
-/* ---------- Ingesta y cálculo ---------- */
-function ingest(pod,buf){
+/* ---------- Ingesta ---------- */
+function ingest(pod,buf,partial){
   const list=parseSnapshots(buf);
   if(!list.length){log(pod.label(),'respuesta sin sesiones',hex(buf).slice(0,80));return}
   const cur=list.reduce((a,b)=>b.session>a.session?b:a);
-  const now=Date.now();
-  const prev=pod.snap;
-  if(prev&&prev.session===cur.session&&(cur.valid>prev.valid||cur.dist>prev.dist))pod.lastChange=now;
-  pod.recording=!!pod.lastChange&&now-pod.lastChange<20000;
-  pod.snap=cur; pod.lastOk=now;
+  if(partial&&pod.snap&&cur.session<pod.snap.session)return; // respuesta cortada antes de la sesión actual
+  const now=Date.now(), prev=pod.snap;
+  if(prev&&prev.session===cur.session){
+    if(cur.valid>prev.valid)pod.lastValid=now;
+    const dd=cur.dist-prev.dist, dt=(now-pod.lastT)/1000;
+    if(dd>0&&dt>0&&dd/dt*3.6>=HSR_KMH)pod.hsr+=dd;
+  } else if(prev){ pod.hsr=0; }
+  if(!prev&&cur.valid>0)pod.lastValid=pod.lastValid||0;
+  pod.snap=cur; pod.lastOk=now; pod.lastT=now;
   if(!pod.base||pod.base.session!==cur.session){
-    // primer dato del bloque o sesión nueva: si la sesión cambió a mitad de bloque, cuenta desde 0
-    pod.base=pod.base&&pod.base.session!==cur.session?{session:cur.session,dist:0,sprint:0,impacts:0,power:0}:{session:cur.session,dist:cur.dist,sprint:cur.sprint,impacts:cur.impacts,power:cur.power};
+    pod.base=pod.base&&pod.base.session!==cur.session?{session:cur.session,dist:0,impacts:0,hsr:0}:{session:cur.session,dist:cur.dist,impacts:cur.impacts,hsr:pod.hsr};
   }
   pod.samples.push([now,cur.dist]); while(pod.samples.length&&now-pod.samples[0][0]>70000)pod.samples.shift();
-  history.push({t:new Date(now).toISOString(),jugador:pod.label(),pod:pod.id,bloque:block.n,sesion:cur.session,dist_total:cur.dist,sprint_total:cur.sprint,vmax_kmh:kmh(cur.topRaw).toFixed(1),impactos:cur.impacts,power_plays:cur.power,registros:cur.valid,lat:cur.lat.toFixed(6),lon:cur.lon.toFixed(6)});
-  if(history.length>20000)history.shift();
-  render(pod.key);
+  history.push({t:new Date(now).toISOString(),jugador:pod.label(),pod:pod.id,bloque:block.n,sesion:cur.session,dist_total:cur.dist,hsr_est:Math.round(pod.hsr),sprint_pod:cur.sprint,vmax_kmh:kmh(cur.topRaw).toFixed(1),impactos:cur.impacts,power_plays:cur.power,registros:cur.valid});
+  if(history.length>40000)history.shift();
+  scheduleRender();
 }
-function blockStats(pod){
-  if(!pod.snap||!pod.base)return null;
-  const s=pod.snap,b=pod.base; const min=Math.max((Date.now()-block.start)/60000,1/60);
-  const dist=Math.max(0,s.dist-b.dist);
-  let mm60=null; const sm=pod.samples; if(sm.length>1){const a=sm.find(x=>sm[sm.length-1][0]-x[0]<=60000)||sm[0]; const last=sm[sm.length-1]; const dt=(last[0]-a[0])/60000; if(dt>0.15)mm60=(last[1]-a[1])/dt;}
-  return {dist,mpm:dist/min,mm60,sprint:Math.max(0,s.sprint-b.sprint),impacts:Math.max(0,s.impacts-b.impacts),vmax:kmh(s.topRaw),session:s.session,total:s.dist};
+function stats(p){
+  if(!p.snap||!p.base)return null;
+  const s=p.snap,b=p.base, min=Math.max((Date.now()-block.start)/60000,1/60), dist=Math.max(0,s.dist-b.dist);
+  let mm60=null; const sm=p.samples; if(sm.length>1){const last=sm[sm.length-1]; const a=sm.find(x=>last[0]-x[0]<=60000)||sm[0]; const dt=(last[0]-a[0])/60000; if(dt>0.15)mm60=(last[1]-a[1])/dt;}
+  return {dist,mpm:dist/min,mm60,hsr:Math.max(0,p.hsr-b.hsr),vmax:kmh(s.topRaw),imp:Math.max(0,s.impacts-b.impacts),acc:null,dec:null,pl:null,total:s.dist,sprint:s.sprint,session:s.session,valid:s.valid};
+}
+function state(p){
+  const now=Date.now(), age=(now-p.lastOk)/1000;
+  if(p.status==='Reconectando')return['Reconectando','warn'];
+  if(p.status==='Conectando'||!p.lastOk)return['Conectando','warn'];
+  if(age>intervalS*3+6)return['Sin datos '+Math.round(age)+' s','bad'];
+  if(p.lastValid&&now-p.lastValid<15000)return['GPS OK','ok'];
+  return['Esperando GPS','warn'];
 }
 
 /* ---------- Interfaz ---------- */
 const fmt=(v,d=0)=>v==null||!isFinite(v)?'–':v.toLocaleString('es-AR',{maximumFractionDigits:d,minimumFractionDigits:d});
-function chip(p){const age=(Date.now()-p.lastOk)/1000;
-  if(p.status==='Reconectando')return['Reconectando','warn'];
-  if(p.status==='Conectando')return['Conectando','warn'];
-  if(!p.lastOk)return['Esperando datos','warn'];
-  if(age>intervalS*3+5)return['Sin datos '+Math.round(age)+' s','bad'];
-  const rec=p.lastChange&&Date.now()-p.lastChange<20000;
-  return[rec?'Grabando':'Conectado','ok'];}
-function render(onlyKey){
-  const grid=$('#grid'); $('#empty').hidden=pods.size>0;
-  for(const [k,p] of pods){
-    if(onlyKey&&onlyKey!==k)continue;
-    let el=grid.querySelector('[data-k="'+CSS.escape(k)+'"]');
-    if(!el){el=document.createElement('article');el.className='card';el.dataset.k=k;
-      el.innerHTML='<div class="head"><input aria-label="Nombre del jugador"><span class="chip"></span></div><div class="big"><span class="v">–</span><span class="u">m en el bloque</span></div><div class="mets"><div class="met"><div class="l">m/min bloque</div><div class="v" data-m="mpm">–</div></div><div class="met"><div class="l">m/min 60 s</div><div class="v" data-m="mm60">–</div></div><div class="met"><div class="l">Sprint</div><div class="v" data-m="spr">–</div></div><div class="met"><div class="l">Vel. máx.</div><div class="v" data-m="vmax">–</div></div><div class="met"><div class="l">Impactos</div><div class="v" data-m="imp">–</div></div><div class="met"><div class="l">Total sesión</div><div class="v" data-m="tot">–</div></div></div><div class="foot"><span class="fi"></span><button type="button">Quitar</button></div>';
-      const inp=el.querySelector('input'); inp.id='name-'+k.replace(/[^a-zA-Z0-9_-]/g,'');
-      inp.addEventListener('change',()=>{ if(p.id){names[p.id]=inp.value.trim();store.set('traklive.names',names);} });
-      el.querySelector('.foot button').addEventListener('click',()=>{p.remove();pods.delete(k);el.remove();render();});
-      grid.appendChild(el);}
-    const inp=el.querySelector('input'); if(document.activeElement!==inp)inp.value=p.label();
-    const [txt,cls]=chip(p); const c=el.querySelector('.chip'); c.textContent=txt; c.className='chip '+cls; el.classList.toggle('stale',cls==='bad');
-    const st=blockStats(p); const bigv=el.querySelector('.big .v'); const newBig=st?fmt(st.dist):'–'; if(bigv.textContent!==newBig){bigv.textContent=newBig;bigv.classList.remove('flash');void bigv.offsetWidth;bigv.classList.add('flash');}
-    const set=(m,h)=>el.querySelector('[data-m="'+m+'"]').innerHTML=h;
-    set('mpm',st?fmt(st.mpm):'–'); set('mm60',st?fmt(st.mm60):'–'); set('spr',st?fmt(st.sprint)+' <small>m</small>':'–');
-    set('vmax',st?fmt(st.vmax,1)+' <small>km/h</small>':'–'); set('imp',st?fmt(st.impacts):'–'); set('tot',st?fmt(st.total)+' <small>m</small>':'–');
-    el.querySelector('.fi').textContent=(p.id?p.id.slice(-8):'')+(st?' · sesión '+st.session:'')+(p.lastOk?' · hace '+Math.round((Date.now()-p.lastOk)/1000)+' s':'')+(p.disc?' · cortes: '+p.disc:'');
-  }
+function buildMetricBar(){const bar=$('#mbar'); bar.innerHTML='';
+  for(const m of METRICS){const b=document.createElement('button'); b.type='button'; b.className='mchip'+(m.post?' post':''); b.dataset.k=m.k;
+    b.innerHTML=m.l+(m.post?'<small>post-sesión</small>':''); b.setAttribute('aria-pressed',String(m.k===metric));
+    b.addEventListener('click',()=>{ if(m.post){$('#mnote').textContent=m.l+' no llega por Bluetooth: el pod solo transmite el resumen de la sesión. Se calcula después con los datos crudos del pod por USB.';return}
+      metric=m.k; store.set('traklive.metric',metric); buildMetricBar(); render(); });
+    bar.appendChild(b);}
+  const m=METRICS.find(x=>x.k===metric); $('#mnote').textContent=NOTES[metric]||'';
+}
+let rq=false; function scheduleRender(){ if(!rq){rq=true; requestAnimationFrame(()=>{rq=false; render();});} }
+function render(){
+  const board=$('#board'); $('#empty').hidden=pods.size>0;
+  const m=METRICS.find(x=>x.k===metric);
+  const rows=[...pods.values()].map(p=>({p,s:stats(p),st:state(p)}));
+  const vals=rows.map(r=>r.s?r.s[metric]:null).filter(v=>v!=null&&isFinite(v));
+  const max=Math.max(1,...vals);
+  if(sortByValue) rows.sort((a,b)=>((b.s?b.s[metric]:-1)??-1)-((a.s?a.s[metric]:-1)??-1)); else rows.sort((a,b)=>a.p.order-b.p.order);
+  const keep=new Set();
+  rows.forEach((r,idx)=>{ const k=r.p.key; keep.add(k);
+    let el=board.querySelector('[data-k="'+CSS.escape(k)+'"]');
+    if(!el){el=document.createElement('button'); el.type='button'; el.className='tile'; el.dataset.k=k;
+      el.innerHTML='<div class="top"><span class="dot"></span><span class="nm"></span></div><div class="val"></div><div class="bar"><i></i></div><div class="st"></div>';
+      el.addEventListener('click',()=>openDetail(k)); }
+    if(board.children[idx]!==el) board.insertBefore(el,board.children[idx]||null);
+    const [txt,cls]=r.st;
+    el.querySelector('.dot').className='dot '+cls; el.classList.toggle('bad',cls==='bad');
+    el.querySelector('.nm').textContent=r.p.label();
+    const v=r.s?r.s[metric]:null;
+    el.querySelector('.val').innerHTML=r.s?fmt(v,m.d)+(m.u?'<small>'+m.u+'</small>':''):'–';
+    el.querySelector('.bar i').style.width=(v!=null&&isFinite(v)?Math.round(100*v/max):0)+'%';
+    const st=el.querySelector('.st'); st.className='st'+(cls==='ok'?'':' '+cls);
+    st.textContent=cls==='ok'?(metric==='mpm'&&r.s&&r.s.mm60!=null?'60 s: '+fmt(r.s.mm60)+' m/min':(r.s?fmt(r.s.dist)+' m · '+fmt(r.s.vmax,1)+' km/h':txt)):txt;
+  });
+  [...board.children].forEach(c=>{if(!keep.has(c.dataset.k))c.remove()});
+  const ok=rows.filter(r=>r.st[1]==='ok').length;
+  $('#gpsCount').innerHTML=pods.size?'<b>'+ok+'</b> de '+pods.size+' con GPS':'';
+  $('#teamAvg').innerHTML=vals.length?'Promedio '+m.l.toLowerCase()+': <b>'+fmt(vals.reduce((a,b)=>a+b,0)/vals.length,m.d)+(m.u?' '+m.u:'')+'</b>':'';
+  if(openKey)fillDetail();
+}
+function openDetail(k){openKey=k; $('#ov').hidden=false; const p=pods.get(k); $('#dName').value=p.label(); fillDetail(); }
+function closeDetail(){openKey=null; $('#ov').hidden=true;}
+function fillDetail(){const p=pods.get(openKey); if(!p){closeDetail();return}
+  const s=stats(p), [txt,cls]=state(p); const c=$('#dChip'); c.textContent=txt; c.className='chip '+cls;
+  const items=[['Dist. bloque',s&&fmt(s.dist),'m'],['Mts x min',s&&fmt(s.mpm),'m/min'],['m/min 60 s',s&&fmt(s.mm60),''],['HSR +18 (est.)',s&&fmt(s.hsr),'m'],['Vel. máx sesión',s&&fmt(s.vmax,1),'km/h'],['Impactos bloque',s&&fmt(s.imp),''],['Sprint (pod)',s&&fmt(s.sprint),'m'],['Total sesión',s&&fmt(s.total),'m'],['Acc +4',null,'post'],['Dec −4',null,'post'],['Player Load',null,'post']];
+  $('#dMets').innerHTML=items.map(([l,v,u])=>u==='post'?'<div class="met na"><div class="l">'+l+'</div><div class="v">post-sesión</div></div>':'<div class="met"><div class="l">'+l+'</div><div class="v">'+(v||'–')+(u?' <small>'+u+'</small>':'')+'</div></div>').join('');
+  $('#dInfo').textContent=(p.id||'')+(s?' · sesión '+s.session:'')+(p.respN!=null?' · '+p.respN+' sesiones en el pod, '+p.respMs+' ms':'')+(p.disc?' · cortes: '+p.disc:'');
 }
 function renderBlocks(){const tb=$('#tblBlocks tbody'); tb.innerHTML=''; $('#noBlocks').hidden=closedBlocks.length>0;
   for(const r of closedBlocks.slice().reverse()){const tr=document.createElement('tr');
-    [r.jugador,'Bloque '+r.bloque,r.dur,fmt(r.dist),fmt(r.mpm),fmt(r.sprint),fmt(r.impacts)].forEach(v=>{const td=document.createElement('td');td.textContent=v;tr.appendChild(td)}); tb.appendChild(tr);}}
+    [r.jugador,'Bloque '+r.bloque,r.dur,fmt(r.dist),fmt(r.mpm),fmt(r.hsr),fmt(r.vmax,1),fmt(r.imp)].forEach(v=>{const td=document.createElement('td');td.textContent=v;tr.appendChild(td)}); tb.appendChild(tr);}}
 const mmss=ms=>{const s=Math.floor(ms/1000);return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')};
 setInterval(()=>{$('#blkTime').textContent=mmss(Date.now()-block.start); render();},1000);
 
@@ -280,20 +373,18 @@ setInterval(()=>{$('#blkTime').textContent=mmss(Date.now()-block.start); render(
 async function addPod(all){
   if(!navigator.bluetooth){$('#noBle').hidden=false;return}
   try{
-    const opts=all===true?{acceptAllDevices:true,optionalServices:[SVC,'device_information']}
-      :{filters:[{namePrefix:'RON'},{services:['device_information']}],optionalServices:[SVC,'device_information']};
-    log(all===true?'Buscando sin filtro':'Buscando RON-POD');
+    const opts=all?{acceptAllDevices:true,optionalServices:[SVC,'device_information']}:{filters:[{namePrefix:'RON'},{namePrefix:'Play'},{services:['device_information']}],optionalServices:[SVC,'device_information']};
     const dev=await navigator.bluetooth.requestDevice(opts);
     log('Elegido:',dev.name||'(sin nombre)',dev.id);
-    if([...pods.values()].some(p=>p.device===dev)){log('Ese pod ya está en la lista');return}
+    if(pods.has(dev.id)){log('Ese pod ya está en la lista');return}
     const p=new Pod(dev); pods.set(p.key,p); render(); keepAwake();
     await p.connect();
   }catch(e){ log('No se pudo agregar el pod:',(e&&e.name)||'',(e&&e.message)||e); render(); }
 }
 function newBlock(){
   const dur=mmss(Date.now()-block.start);
-  for(const p of pods.values()){const st=blockStats(p); if(st)closedBlocks.push({jugador:p.label(),bloque:block.n,dur,dist:st.dist,mpm:st.mpm,sprint:st.sprint,impacts:st.impacts});
-    if(p.snap)p.base={session:p.snap.session,dist:p.snap.dist,sprint:p.snap.sprint,impacts:p.snap.impacts,power:p.snap.power};}
+  for(const p of pods.values()){const s=stats(p); if(s)closedBlocks.push({jugador:p.label(),bloque:block.n,dur,dist:s.dist,mpm:s.mpm,hsr:s.hsr,vmax:s.vmax,imp:s.imp});
+    if(p.snap)p.base={session:p.snap.session,dist:p.snap.dist,impacts:p.snap.impacts,hsr:p.hsr};}
   block={n:block.n+1,start:Date.now()}; $('#blkName').textContent='Bloque '+block.n; renderBlocks(); render();
 }
 function toCsv(rows){if(!rows.length)return'';const cols=Object.keys(rows[0]);return [cols.join(',')].concat(rows.map(r=>cols.map(c=>{const v=String(r[c]??'');return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(','))).join('\n');}
@@ -305,8 +396,10 @@ async function exportCsv(){
   try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=name;document.body.appendChild(a);a.click();a.remove();}catch(e){}
   try{await navigator.clipboard.writeText(csv);log('CSV copiado al portapapeles ('+history.length+' filas)')}catch(e){}
 }
-function demo(){ if([...pods.keys()].some(k=>k.startsWith('demo'))){for(const [k,p] of pods)if(k.startsWith('demo')){p.remove();pods.delete(k);document.querySelector('[data-k="'+k+'"]')?.remove()} render();return}
-  for(let i=0;i<3;i++){const p=new FakePod(i);pods.set(p.key,p);p.connect();} }
+function demo(){
+  if([...pods.keys()].some(k=>k.startsWith('demo'))){for(const [k,p] of pods)if(k.startsWith('demo')){p.remove();pods.delete(k)} render();return}
+  for(let i=0;i<17;i++){const p=new FakePod(i);pods.set(p.key,p);p.connect();}
+}
 async function keepAwake(){try{if('wakeLock' in navigator&&!wakeLock){wakeLock=await navigator.wakeLock.request('screen');wakeLock.addEventListener('release',()=>wakeLock=null)}}catch(e){}}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&pods.size)keepAwake()});
 
@@ -315,9 +408,15 @@ $('#btnAddAll').addEventListener('click',()=>addPod(true));
 $('#btnBlock').addEventListener('click',newBlock);
 $('#btnCsv').addEventListener('click',exportCsv);
 $('#btnDemo').addEventListener('click',demo);
+$('#btnSort').addEventListener('click',e=>{sortByValue=!sortByValue; e.currentTarget.textContent='Orden: '+(sortByValue?'mayor a menor':'llegada'); e.currentTarget.setAttribute('aria-pressed',String(sortByValue)); render();});
 $('#selInt').addEventListener('change',e=>{intervalS=+e.target.value;store.set('traklive.int',intervalS)});
+$('#dName').addEventListener('change',()=>{const p=pods.get(openKey); if(p&&p.id){names[p.id]=$('#dName').value.trim();store.set('traklive.names',names);render();}});
+$('#dClose').addEventListener('click',closeDetail);
+$('#ov').addEventListener('click',e=>{if(e.target.id==='ov')closeDetail()});
+$('#dRemove').addEventListener('click',()=>{const p=pods.get(openKey); if(p){p.remove();pods.delete(openKey);} closeDetail(); render();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&openKey)closeDetail()});
 if(!navigator.bluetooth)$('#noBle').hidden=false;
 window.__traklive={parseSnapshots,expectedLen};
-render(); renderBlocks();
+buildMetricBar(); render(); renderBlocks();
 })();
 </script>
