@@ -1,0 +1,309 @@
+<title>TrakLive</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: barra de control fija arriba, grilla de tarjetas por jugador (marcador de cancha), bloques y registro abajo */
+:root{
+  --bg:#F3F6F2; --surface:#FFFFFF; --line:#D5DDD6; --fg:#0F1A14; --muted:#5B6B61;
+  --accent:#0A7A52; --accent-fg:#FFFFFF; --ok:#13804F; --warn:#B26A00; --bad:#B42318; --chip:#E7EEE9;
+  --f-num:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0C1210; --surface:#151E1A; --line:#26332C; --fg:#E7EFEA; --muted:#93A69A;
+  --accent:#3FD49B; --accent-fg:#06110C; --ok:#4ADE96; --warn:#F5B547; --bad:#FF7A6B; --chip:#1E2A24; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0C1210; --surface:#151E1A; --line:#26332C; --fg:#E7EFEA; --muted:#93A69A;
+  --accent:#3FD49B; --accent-fg:#06110C; --ok:#4ADE96; --warn:#F5B547; --bad:#FF7A6B; --chip:#1E2A24; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.4}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.wrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding-block:12px}
+.brand{font-family:var(--f-num);font-weight:700;font-size:26px;letter-spacing:.02em;margin-right:auto;display:flex;align-items:baseline;gap:10px}
+.brand small{font-family:var(--f-body);font-weight:500;font-size:13px;color:var(--muted);letter-spacing:0}
+button,select{font:inherit;font-weight:600;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:9px 14px;min-height:42px;cursor:pointer}
+button.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+button:disabled{opacity:.45;cursor:default}
+.ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.ctl label{font-size:13px;color:var(--muted);font-weight:500}
+main{display:grid;gap:22px;padding-block:18px 40px}
+.notice{border:1px solid var(--line);border-left:4px solid var(--warn);background:var(--surface);border-radius:10px;padding:12px 14px;max-width:75ch}
+.notice b{font-weight:600}
+.blockline{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:baseline}
+.blockline h2{font-family:var(--f-num);font-size:22px;margin:0;font-weight:600}
+.blockline .t{font-family:var(--f-num);font-size:22px;font-variant-numeric:tabular-nums;color:var(--accent)}
+.muted{color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;grid-template-columns:minmax(0,1fr);gap:10px;min-width:0}
+.card>*{min-width:0}
+.card.stale{border-color:var(--warn)}
+.head{display:flex;gap:8px;align-items:center}
+.head input{flex:1;min-width:0;width:0;font:inherit;font-family:var(--f-num);font-size:22px;font-weight:600;border:0;border-bottom:1px dashed var(--line);background:transparent;color:var(--fg);padding:2px 0}
+.chip{font-size:12px;font-weight:600;border-radius:999px;padding:3px 9px;background:var(--chip);white-space:nowrap}
+.chip.ok{color:var(--ok)} .chip.warn{color:var(--warn)} .chip.bad{color:var(--bad)}
+.big{display:flex;align-items:baseline;gap:6px}
+.big .v{font-family:var(--f-num);font-weight:700;font-size:58px;line-height:1;font-variant-numeric:tabular-nums}
+.big .u{font-size:15px;color:var(--muted)}
+.mets{display:grid;grid-template-columns:repeat(2,1fr);gap:8px 12px}
+.met .l{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.met .v{font-family:var(--f-num);font-size:26px;font-weight:600;font-variant-numeric:tabular-nums}
+.met .v small{font-size:14px;color:var(--muted);font-weight:500}
+.foot{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--muted);flex-wrap:wrap}
+.foot button{min-height:32px;padding:4px 10px;font-size:12px}
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:14px;padding:22px;display:grid;gap:8px;max-width:75ch}
+.empty h3{margin:0;font-family:var(--f-num);font-size:22px}
+.empty ol{margin:0;padding-left:20px;display:grid;gap:4px}
+section h2{font-family:var(--f-num);font-size:22px;font-weight:600;margin:0 0 8px}
+.tablebox{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:14px}
+th,td{text-align:right;padding:8px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+details{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+summary{cursor:pointer;font-weight:600}
+#log{font-family:var(--f-mono);font-size:12px;white-space:pre-wrap;word-break:break-all;max-height:260px;overflow:auto;margin:8px 0 0;color:var(--muted)}
+.note{font-size:13px;color:var(--muted);max-width:75ch}
+@media (prefers-reduced-motion:no-preference){.flash{animation:fl .6s ease-out}@keyframes fl{from{color:var(--accent)}}}
+</style>
+
+<header><div class="wrap bar">
+  <div class="brand">TrakLive <small id="sub">PLAYERTEK en vivo</small></div>
+  <div class="ctl">
+    <button class="primary" id="btnAdd">+ Agregar pod</button>
+    <label for="selInt">Cada</label>
+    <select id="selInt"><option value="3">3 s</option><option value="5" selected>5 s</option><option value="10">10 s</option></select>
+    <button id="btnBlock">Nuevo bloque</button>
+    <button id="btnCsv">Exportar CSV</button>
+    <button id="btnDemo">Demo</button>
+  </div>
+</div></header>
+
+<main class="wrap">
+  <div class="notice" id="noBle" hidden><b>Este navegador no tiene Bluetooth.</b> En iPhone o iPad abrí esta página con la app gratuita <b>Bluefy</b> (Safari no permite Bluetooth). En Android o computadora usá Chrome. Mientras tanto podés probar con <b>Demo</b>.</div>
+
+  <div class="blockline"><h2 id="blkName">Bloque 1</h2><span class="t" id="blkTime">00:00</span><span class="muted" id="blkInfo">Las métricas de cada tarjeta cuentan desde el inicio del bloque.</span></div>
+
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty">
+    <h3>Sin pods conectados</h3>
+    <ol>
+      <li>Prendé el pod y esperá que tome GPS.</li>
+      <li>Tocá <b>+ Agregar pod</b> y elegí el <b>RON-POD</b> de la lista. Repetí con cada jugador.</li>
+      <li>Tocá el nombre en la tarjeta para escribir el del jugador.</li>
+    </ol>
+    <span class="muted">¿Sin pods a mano? <b>Demo</b> carga tres jugadores simulados.</span>
+  </div>
+
+  <section>
+    <h2>Bloques</h2>
+    <div class="tablebox"><table id="tblBlocks"><thead><tr><th>Jugador</th><th>Bloque</th><th>Duración</th><th>Distancia m</th><th>m/min</th><th>Sprint m</th><th>Impactos</th></tr></thead><tbody></tbody></table></div>
+    <p class="note" id="noBlocks">Al tocar <b>Nuevo bloque</b> se cierra el bloque actual y queda registrado acá.</p>
+  </section>
+
+  <details><summary>Registro técnico</summary><pre id="log"></pre></details>
+
+  <p class="note">Vel. máx. es la máxima de toda la sesión del pod (el pod no la informa por bloque). La unidad de velocidad (mm/s) está deducida de los datos y conviene validarla con una sesión conocida. m/min (60 s) usa la distancia de los últimos 60 segundos.</p>
+</main>
+
+<script>
+(()=>{
+'use strict';
+const SVC='d973f3e0-b19e-11e2-9e96-0800200c9a67';
+const CH_DATA='d973f3e1-b19e-11e2-9e96-0800200c9a68';
+const CH_CMD='d973f3e1-b19e-11e2-9e96-0800200c9a69';
+const CH_ID='d973f3e1-b19e-11e2-9e96-0800200c9a6a';
+const CMD_SNAP=new TextEncoder().encode('AAAAAAF00990000');
+const $=s=>document.querySelector(s);
+
+/* ---------- Protocolo: resumen de sesiones ---------- */
+function u16le(b,o){return b[o]|(b[o+1]<<8)}
+function u32le(b,o){return (b[o]|(b[o+1]<<8)|(b[o+2]<<16)|(b[o+3]<<24))>>>0}
+function i32le(b,o){return b[o]|(b[o+1]<<8)|(b[o+2]<<16)|(b[o+3]<<24)}
+function expectedLen(buf){ if(buf.length<4)return Infinity; const n=(buf[2]<<8)|buf[3]; let L=n*32+4; if(L%20)L+=20-L%20; return L; }
+function parseSnapshots(buf){
+  const n=(buf[2]<<8)|buf[3], out=[];
+  for(let k=0;k<n;k++){ const o=4+32*k; if(o+32>buf.length)break; const b=buf.subarray(o,o+32);
+    out.push({session:(b[0]<<8)|b[1], dist:u16le(b,2), sprint:u16le(b,4), impacts:u16le(b,6), topRaw:u16le(b,8),
+      valid:u32le(b,10), start:u32le(b,14), lat:i32le(b,18)/1e7, lon:i32le(b,22)/1e7, dur:u32le(b,26), power:u16le(b,30)}); }
+  return out;
+}
+const kmh=raw=>raw*0.0036;
+
+/* ---------- Estado ---------- */
+const pods=new Map(); // id -> pod
+let block={n:1,start:Date.now()}; const closedBlocks=[]; const history=[];
+let intervalS=5; let wakeLock=null;
+const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const names=store.get('traklive.names',{});
+intervalS=store.get('traklive.int',5); $('#selInt').value=String(intervalS);
+
+function log(...a){const el=$('#log'); const line=new Date().toLocaleTimeString()+'  '+a.join(' '); el.textContent=(line+'\n'+el.textContent).slice(0,20000);}
+const hex=u=>Array.from(u,x=>x.toString(16).padStart(2,'0')).join('');
+
+/* ---------- Pod real (Web Bluetooth) ---------- */
+class Pod{
+  constructor(device){this.device=device;this.key=device.id;this.id=null;this.status='Conectando';this.snap=null;this.base=null;this.samples=[];this.buf=new Uint8Array(0);this.pending=null;this.lastOk=0;this.retry=0;this.removed=false;this.timer=null;
+    device.addEventListener('gattserverdisconnected',()=>this.onDisc());}
+  async connect(){
+    this.status='Conectando'; render();
+    const server=await this.device.gatt.connect();
+    const svc=await server.getPrimaryService(SVC);
+    this.data=await svc.getCharacteristic(CH_DATA);
+    this.cmd=await svc.getCharacteristic(CH_CMD);
+    if(!this.id){ try{const idc=await svc.getCharacteristic(CH_ID); const v=await idc.readValue(); this.id=new TextDecoder().decode(v).replace(/\0/g,'').trim();}catch(e){this.id=this.device.id} }
+    this.data.addEventListener('characteristicvaluechanged',e=>this.onPacket(new Uint8Array(e.target.value.buffer.slice(e.target.value.byteOffset,e.target.value.byteOffset+e.target.value.byteLength))));
+    await this.data.startNotifications();
+    this.status='Conectado'; this.retry=0; log(this.label(),'conectado, id',this.id); render();
+    this.schedule(0);
+  }
+  label(){return names[this.id]||this.device.name||'Pod'}
+  schedule(ms){clearTimeout(this.timer); if(!this.removed) this.timer=setTimeout(()=>this.poll(),ms);}
+  async poll(){
+    if(this.removed)return;
+    if(!this.device.gatt.connected){return}
+    if(!this.pending){
+      this.buf=new Uint8Array(0);
+      this.pending=setTimeout(()=>{ if(this.buf.length>=36){this.finish()} this.pending=null; },2500);
+      try{ if(this.cmd.writeValueWithoutResponse) await this.cmd.writeValueWithoutResponse(CMD_SNAP); else await this.cmd.writeValue(CMD_SNAP); }
+      catch(e){ try{await this.cmd.writeValue(CMD_SNAP)}catch(e2){log(this.label(),'error al pedir datos',e2.message)} }
+    }
+    this.schedule(intervalS*1000);
+  }
+  onPacket(p){
+    const nb=new Uint8Array(this.buf.length+p.length); nb.set(this.buf); nb.set(p,this.buf.length); this.buf=nb;
+    if(this.buf.length>=expectedLen(this.buf)) this.finish();
+  }
+  finish(){ if(this.pending){clearTimeout(this.pending);this.pending=null} const buf=this.buf; this.buf=new Uint8Array(0); ingest(this,buf); }
+  onDisc(){ if(this.removed)return; this.status='Reconectando'; render(); clearTimeout(this.pending); this.pending=null;
+    const wait=Math.min(1000*2**this.retry,10000); this.retry++;
+    setTimeout(()=>{ if(this.removed)return; this.connect().catch(e=>{log(this.label(),'reconexión falló',e.message); this.onDisc();}); },wait); }
+  remove(){this.removed=true;clearTimeout(this.timer);clearTimeout(this.pending);try{this.device.gatt.disconnect()}catch(e){}}
+}
+
+/* ---------- Pod simulado (mismo formato de bytes) ---------- */
+class FakePod{
+  constructor(i){this.key='demo'+i;this.id='DEMO-'+(1001+i);this.device={name:'RON-POD'};this.status='Conectado';this.snap=null;this.base=null;this.samples=[];this.removed=false;
+    this.sess=12+i;this.d=0;this.spr=0;this.imp=0;this.top=0;this.valid=0;this.pace=[1.6,2.1,1.2][i%3];this.timer=null;}
+  async connect(){render();this.schedule(300)}
+  label(){return names[this.id]||['Juan Pérez','Tomás Ruiz','Nico Díaz'][this.key.slice(4)%3]}
+  schedule(ms){clearTimeout(this.timer); if(!this.removed) this.timer=setTimeout(()=>this.poll(),ms);}
+  poll(){
+    const dt=intervalS; const v=Math.max(0,this.pace+(Math.random()-.45)*1.4+(Math.random()<.12?3.5:0));
+    this.d+=v*dt; if(v>5.5)this.spr+=v*dt*0.7; if(Math.random()<.06)this.imp++; this.top=Math.max(this.top,Math.round(v*1000)); this.valid+=dt*10;
+    const recs=[[this.sess-2,3200,90,4,6100],[this.sess-1,2800,60,2,5800],[this.sess,Math.round(this.d),Math.round(this.spr),this.imp,this.top]];
+    let L=recs.length*32+4; if(L%20)L+=20-L%20; const b=new Uint8Array(L); b[0]=0;b[1]=this.sess;b[2]=0;b[3]=recs.length;
+    recs.forEach((r,k)=>{const o=4+32*k; b[o]=r[0]>>8;b[o+1]=r[0]&255; const w16=(x,v)=>{b[o+x]=v&255;b[o+x+1]=(v>>8)&255}; const w32=(x,v)=>{for(let j=0;j<4;j++)b[o+x+j]=(v>>>(8*j))&255};
+      w16(2,r[1]);w16(4,r[2]);w16(6,r[3]);w16(8,r[4]);w32(10,k==2?this.valid:30000);w32(14,93000000+k*100000);w32(18,-346000000);w32(22,-588900000);w32(26,k==2?this.valid:30000);});
+    // se entrega en paquetes de 20 bytes, como el pod real
+    let buf=new Uint8Array(0); for(let o=0;o<b.length;o+=20){const p=b.subarray(o,o+20); const nb=new Uint8Array(buf.length+p.length); nb.set(buf); nb.set(p,buf.length); buf=nb; if(buf.length>=expectedLen(buf))break;}
+    ingest(this,buf); this.schedule(intervalS*1000);
+  }
+  remove(){this.removed=true;clearTimeout(this.timer)}
+}
+
+/* ---------- Ingesta y cálculo ---------- */
+function ingest(pod,buf){
+  const list=parseSnapshots(buf);
+  if(!list.length){log(pod.label(),'respuesta sin sesiones',hex(buf).slice(0,80));return}
+  const cur=list.reduce((a,b)=>b.session>a.session?b:a);
+  const now=Date.now();
+  const prev=pod.snap;
+  pod.recording=!!prev&&prev.session===cur.session&&(cur.valid>prev.valid||cur.dist>prev.dist);
+  pod.snap=cur; pod.lastOk=now;
+  if(!pod.base||pod.base.session!==cur.session){
+    // primer dato del bloque o sesión nueva: si la sesión cambió a mitad de bloque, cuenta desde 0
+    pod.base=pod.base&&pod.base.session!==cur.session?{session:cur.session,dist:0,sprint:0,impacts:0,power:0}:{session:cur.session,dist:cur.dist,sprint:cur.sprint,impacts:cur.impacts,power:cur.power};
+  }
+  pod.samples.push([now,cur.dist]); while(pod.samples.length&&now-pod.samples[0][0]>70000)pod.samples.shift();
+  history.push({t:new Date(now).toISOString(),jugador:pod.label(),pod:pod.id,bloque:block.n,sesion:cur.session,dist_total:cur.dist,sprint_total:cur.sprint,vmax_kmh:kmh(cur.topRaw).toFixed(1),impactos:cur.impacts,power_plays:cur.power,registros:cur.valid,lat:cur.lat.toFixed(6),lon:cur.lon.toFixed(6)});
+  if(history.length>20000)history.shift();
+  render(pod.key);
+}
+function blockStats(pod){
+  if(!pod.snap||!pod.base)return null;
+  const s=pod.snap,b=pod.base; const min=Math.max((Date.now()-block.start)/60000,1/60);
+  const dist=Math.max(0,s.dist-b.dist);
+  let mm60=null; const sm=pod.samples; if(sm.length>1){const a=sm.find(x=>sm[sm.length-1][0]-x[0]<=60000)||sm[0]; const last=sm[sm.length-1]; const dt=(last[0]-a[0])/60000; if(dt>0.15)mm60=(last[1]-a[1])/dt;}
+  return {dist,mpm:dist/min,mm60,sprint:Math.max(0,s.sprint-b.sprint),impacts:Math.max(0,s.impacts-b.impacts),vmax:kmh(s.topRaw),session:s.session,total:s.dist};
+}
+
+/* ---------- Interfaz ---------- */
+const fmt=(v,d=0)=>v==null||!isFinite(v)?'–':v.toLocaleString('es-AR',{maximumFractionDigits:d,minimumFractionDigits:d});
+function chip(p){const age=(Date.now()-p.lastOk)/1000;
+  if(p.status==='Reconectando')return['Reconectando','warn'];
+  if(p.status==='Conectando')return['Conectando','warn'];
+  if(!p.lastOk)return['Esperando datos','warn'];
+  if(age>intervalS*3+5)return['Sin datos '+Math.round(age)+' s','bad'];
+  return[p.recording?'Grabando':'Conectado','ok'];}
+function render(onlyKey){
+  const grid=$('#grid'); $('#empty').hidden=pods.size>0;
+  for(const [k,p] of pods){
+    if(onlyKey&&onlyKey!==k)continue;
+    let el=grid.querySelector('[data-k="'+CSS.escape(k)+'"]');
+    if(!el){el=document.createElement('article');el.className='card';el.dataset.k=k;
+      el.innerHTML='<div class="head"><input aria-label="Nombre del jugador"><span class="chip"></span></div><div class="big"><span class="v">–</span><span class="u">m en el bloque</span></div><div class="mets"><div class="met"><div class="l">m/min bloque</div><div class="v" data-m="mpm">–</div></div><div class="met"><div class="l">m/min 60 s</div><div class="v" data-m="mm60">–</div></div><div class="met"><div class="l">Sprint</div><div class="v" data-m="spr">–</div></div><div class="met"><div class="l">Vel. máx.</div><div class="v" data-m="vmax">–</div></div><div class="met"><div class="l">Impactos</div><div class="v" data-m="imp">–</div></div><div class="met"><div class="l">Total sesión</div><div class="v" data-m="tot">–</div></div></div><div class="foot"><span class="fi"></span><button type="button">Quitar</button></div>';
+      const inp=el.querySelector('input'); inp.id='name-'+k.replace(/[^a-zA-Z0-9_-]/g,'');
+      inp.addEventListener('change',()=>{ if(p.id){names[p.id]=inp.value.trim();store.set('traklive.names',names);} });
+      el.querySelector('.foot button').addEventListener('click',()=>{p.remove();pods.delete(k);el.remove();render();});
+      grid.appendChild(el);}
+    const inp=el.querySelector('input'); if(document.activeElement!==inp)inp.value=p.label();
+    const [txt,cls]=chip(p); const c=el.querySelector('.chip'); c.textContent=txt; c.className='chip '+cls; el.classList.toggle('stale',cls==='bad');
+    const st=blockStats(p); const bigv=el.querySelector('.big .v'); const newBig=st?fmt(st.dist):'–'; if(bigv.textContent!==newBig){bigv.textContent=newBig;bigv.classList.remove('flash');void bigv.offsetWidth;bigv.classList.add('flash');}
+    const set=(m,h)=>el.querySelector('[data-m="'+m+'"]').innerHTML=h;
+    set('mpm',st?fmt(st.mpm):'–'); set('mm60',st?fmt(st.mm60):'–'); set('spr',st?fmt(st.sprint)+' <small>m</small>':'–');
+    set('vmax',st?fmt(st.vmax,1)+' <small>km/h</small>':'–'); set('imp',st?fmt(st.impacts):'–'); set('tot',st?fmt(st.total)+' <small>m</small>':'–');
+    el.querySelector('.fi').textContent=(p.id?p.id.slice(-8):'')+(st?' · sesión '+st.session:'')+(p.lastOk?' · hace '+Math.round((Date.now()-p.lastOk)/1000)+' s':'');
+  }
+}
+function renderBlocks(){const tb=$('#tblBlocks tbody'); tb.innerHTML=''; $('#noBlocks').hidden=closedBlocks.length>0;
+  for(const r of closedBlocks.slice().reverse()){const tr=document.createElement('tr');
+    [r.jugador,'Bloque '+r.bloque,r.dur,fmt(r.dist),fmt(r.mpm),fmt(r.sprint),fmt(r.impacts)].forEach(v=>{const td=document.createElement('td');td.textContent=v;tr.appendChild(td)}); tb.appendChild(tr);}}
+const mmss=ms=>{const s=Math.floor(ms/1000);return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')};
+setInterval(()=>{$('#blkTime').textContent=mmss(Date.now()-block.start); render();},1000);
+
+/* ---------- Acciones ---------- */
+async function addPod(){
+  if(!navigator.bluetooth){$('#noBle').hidden=false;return}
+  try{
+    const dev=await navigator.bluetooth.requestDevice({filters:[{namePrefix:'RON-POD'}],optionalServices:[SVC,'device_information']});
+    if([...pods.values()].some(p=>p.device===dev)){log('Ese pod ya está en la lista');return}
+    const p=new Pod(dev); pods.set(p.key,p); render(); keepAwake();
+    await p.connect();
+  }catch(e){ if(e&&e.name!=='NotFoundError')log('No se pudo agregar el pod:',e.message||e); render(); }
+}
+function newBlock(){
+  const dur=mmss(Date.now()-block.start);
+  for(const p of pods.values()){const st=blockStats(p); if(st)closedBlocks.push({jugador:p.label(),bloque:block.n,dur,dist:st.dist,mpm:st.mpm,sprint:st.sprint,impacts:st.impacts});
+    if(p.snap)p.base={session:p.snap.session,dist:p.snap.dist,sprint:p.snap.sprint,impacts:p.snap.impacts,power:p.snap.power};}
+  block={n:block.n+1,start:Date.now()}; $('#blkName').textContent='Bloque '+block.n; renderBlocks(); render();
+}
+function toCsv(rows){if(!rows.length)return'';const cols=Object.keys(rows[0]);return [cols.join(',')].concat(rows.map(r=>cols.map(c=>{const v=String(r[c]??'');return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(','))).join('\n');}
+async function exportCsv(){
+  const csv=toCsv(history)+(closedBlocks.length?'\n\n'+toCsv(closedBlocks):'');
+  if(!csv){log('Todavía no hay datos para exportar');return}
+  const name='traklive_'+new Date().toISOString().slice(0,16).replace(/[:T]/g,'-')+'.csv';
+  try{const f=new File([csv],name,{type:'text/csv'}); if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:name});return}}catch(e){}
+  try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=name;document.body.appendChild(a);a.click();a.remove();}catch(e){}
+  try{await navigator.clipboard.writeText(csv);log('CSV copiado al portapapeles ('+history.length+' filas)')}catch(e){}
+}
+function demo(){ if([...pods.keys()].some(k=>k.startsWith('demo'))){for(const [k,p] of pods)if(k.startsWith('demo')){p.remove();pods.delete(k);document.querySelector('[data-k="'+k+'"]')?.remove()} render();return}
+  for(let i=0;i<3;i++){const p=new FakePod(i);pods.set(p.key,p);p.connect();} }
+async function keepAwake(){try{if('wakeLock' in navigator&&!wakeLock){wakeLock=await navigator.wakeLock.request('screen');wakeLock.addEventListener('release',()=>wakeLock=null)}}catch(e){}}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&pods.size)keepAwake()});
+
+$('#btnAdd').addEventListener('click',addPod);
+$('#btnBlock').addEventListener('click',newBlock);
+$('#btnCsv').addEventListener('click',exportCsv);
+$('#btnDemo').addEventListener('click',demo);
+$('#selInt').addEventListener('change',e=>{intervalS=+e.target.value;store.set('traklive.int',intervalS)});
+if(!navigator.bluetooth)$('#noBle').hidden=false;
+window.__traklive={parseSnapshots,expectedLen};
+render(); renderBlocks();
+})();
+</script>
