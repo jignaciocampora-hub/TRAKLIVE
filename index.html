@@ -3,23 +3,26 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
 <style>
-/* Layout: barra de control + selector de métrica fijos arriba; grilla compacta tipo tablero de banco de suplentes con los 17 jugadores; detalle por jugador en panel superpuesto */
+/* Layout: cabecera con acciones de pods + filtros (métrica, split, orden); lista de jugadores con barra proporcional; barra inferior fija con reloj y controles de sesión */
 :root{
-  --bg:#F3F6F2; --surface:#FFFFFF; --line:#D5DDD6; --fg:#0F1A14; --muted:#5B6B61;
-  --accent:#0A7A52; --accent-fg:#FFFFFF; --ok:#13804F; --warn:#B26A00; --bad:#B42318; --chip:#E7EEE9; --bar:#0A7A52; --barbg:#E2EAE4;
+  --bg:#F2F5F1; --surface:#FFFFFF; --line:#D5DDD6; --fg:#0F1A14; --muted:#5B6B61;
+  --accent:#0A7A52; --accent-fg:#FFFFFF; --ok:#13804F; --warn:#B26A00; --bad:#B42318; --chip:#E7EEE9;
+  --track:#E6ECE7; --fill:#A9DEC6; --lead:#5FC79C; --dock:#0F1A14; --dock-fg:#F2F5F1;
   --f-num:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
   --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
   --f-mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#0C1210; --surface:#151E1A; --line:#26332C; --fg:#E7EFEA; --muted:#93A69A;
-  --accent:#3FD49B; --accent-fg:#06110C; --ok:#4ADE96; --warn:#F5B547; --bad:#FF7A6B; --chip:#1E2A24; --bar:#3FD49B; --barbg:#22302A; color-scheme:dark}}
+  --bg:#0B110F; --surface:#141D19; --line:#25322B; --fg:#E7EFEA; --muted:#93A69A;
+  --accent:#3FD49B; --accent-fg:#06110C; --ok:#4ADE96; --warn:#F5B547; --bad:#FF7A6B; --chip:#1E2A24;
+  --track:#1A2520; --fill:#1E5C44; --lead:#2E8F67; --dock:#060A08; --dock-fg:#E7EFEA; color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#0C1210; --surface:#151E1A; --line:#26332C; --fg:#E7EFEA; --muted:#93A69A;
-  --accent:#3FD49B; --accent-fg:#06110C; --ok:#4ADE96; --warn:#F5B547; --bad:#FF7A6B; --chip:#1E2A24; --bar:#3FD49B; --barbg:#22302A; color-scheme:dark}
+  --bg:#0B110F; --surface:#141D19; --line:#25322B; --fg:#E7EFEA; --muted:#93A69A;
+  --accent:#3FD49B; --accent-fg:#06110C; --ok:#4ADE96; --warn:#F5B547; --bad:#FF7A6B; --chip:#1E2A24;
+  --track:#1A2520; --fill:#1E5C44; --lead:#2E8F67; --dock:#060A08; --dock-fg:#E7EFEA; color-scheme:dark}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.35}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.35;padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
 .wrap{padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px))}
 @media (min-width:600px){.wrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}}
@@ -30,36 +33,42 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var
 .scroller::-webkit-scrollbar{display:none}
 button,select{font:inherit;font-weight:600;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:7px 12px;min-height:40px;cursor:pointer;white-space:nowrap;flex:none}
 button.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
-button:focus-visible,select:focus-visible,input:focus-visible,.tile:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
-.lbl{font-size:13px;color:var(--muted);white-space:nowrap}
-.metrics{border-top:1px solid var(--line)}
-.mchip{border-radius:999px;min-height:36px;padding:6px 14px;background:var(--chip);border-color:transparent;font-weight:600}
-.mchip[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg)}
-.mchip.post{color:var(--muted);background:transparent;border:1px dashed var(--line)}
-.mchip.post small{font-weight:500;font-size:11px;margin-left:4px}
-main{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;padding-block:12px 40px}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.lbl{font-size:12px;color:var(--muted);white-space:nowrap}
+.filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding-block:8px;border-top:1px solid var(--line)}
+@media (min-width:700px){.filters{grid-template-columns:2fr 1.4fr 1fr 1fr}}
+.filters label{display:grid;gap:3px;min-width:0}
+.filters select,.filters button{width:100%;min-width:0}
+.filters select{font-size:16px;appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 16px) 50%,calc(100% - 11px) 50%;background-size:5px 5px;background-repeat:no-repeat;padding-right:28px}
+main{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;padding-block:10px 24px}
 main>*{min-width:0}
 .notice{border:1px solid var(--line);border-left:4px solid var(--warn);background:var(--surface);border-radius:10px;padding:10px 12px;max-width:75ch}
-.summary{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px}
-.summary .bk{font-family:var(--f-num);font-size:22px;font-weight:600}
-.summary .t{font-family:var(--f-num);font-size:22px;font-variant-numeric:tabular-nums;color:var(--accent)}
-.summary .s{font-size:14px;color:var(--muted)}
-.summary b{color:var(--fg);font-weight:600}
-.mnote{font-size:13px;color:var(--muted);max-width:80ch;margin:0}
-.board{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}
-@media (min-width:700px){.board{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}}
-.tile{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 10px 9px;display:grid;gap:3px;min-width:0;text-align:left;cursor:pointer;font:inherit;color:inherit;min-height:0}
-.tile.bad{border-color:var(--bad)}
-.tile .top{display:flex;align-items:center;gap:6px;min-width:0}
-.dot{width:9px;height:9px;border-radius:50%;flex:none;background:var(--muted)}
+.avg{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 12px}
+.avg .a{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.avg .a b{font-family:var(--f-num);font-size:20px;letter-spacing:0;color:var(--fg);margin-left:4px}
+.avg .g{font-size:13px;color:var(--muted)}
+.avg .g b{color:var(--fg)}
+.mnote{font-size:12px;color:var(--muted);margin:0;max-width:80ch}
+.list{display:grid;gap:6px}
+.pl{display:grid;grid-template-columns:minmax(0,1fr) 44px;gap:8px;align-items:stretch;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:6px 6px 6px 10px}
+.pl.off{opacity:.45}
+.pl.bad{border-color:var(--bad)}
+.pl .who{display:flex;align-items:center;gap:7px;min-width:0;background:none;border:0;padding:0;min-height:0;font-weight:600;font-size:14px;text-align:left;color:inherit}
+.pl .who .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.pl .who .id{color:var(--muted);font-weight:500;font-size:12px;white-space:nowrap}
+.pl .who .st{margin-left:auto;font-size:12px;font-weight:500;white-space:nowrap;color:var(--muted)}
+.pl .who .st.warn{color:var(--warn)} .pl .who .st.bad{color:var(--bad)}
+.dot{width:10px;height:10px;border-radius:50%;flex:none;background:var(--muted)}
 .dot.ok{background:var(--ok)} .dot.warn{background:var(--warn)} .dot.bad{background:var(--bad)}
-.tile .nm{font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
-.tile .val{font-family:var(--f-num);font-weight:700;font-size:clamp(26px,7.5vw,40px);line-height:1;font-variant-numeric:tabular-nums;white-space:nowrap}
-.tile .val small{font-size:.42em;font-weight:500;color:var(--muted);margin-left:2px}
-.tile .bar{height:4px;background:var(--barbg);border-radius:2px;overflow:hidden}
-.tile .bar i{display:block;height:100%;background:var(--bar);width:0;transition:width .4s}
-.tile .st{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tile .st.warn{color:var(--warn)} .tile .st.bad{color:var(--bad)}
+.main{display:grid;gap:4px;min-width:0}
+.bar{position:relative;height:40px;background:var(--track);border-radius:7px;overflow:hidden}
+.bar i{position:absolute;inset:0 auto 0 0;width:0;background:var(--fill);transition:width .5s}
+.pl.lead .bar i{background:var(--lead)}
+.bar .v{position:relative;font-family:var(--f-num);font-weight:700;font-size:30px;line-height:40px;padding-left:10px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.bar .v small{font-size:15px;font-weight:600;margin-left:3px;color:var(--muted)}
+.bar .x{position:absolute;right:8px;top:0;line-height:40px;font-size:12px;color:var(--muted);white-space:nowrap}
+.sel{border-radius:8px;min-height:0;height:auto;padding:0;font-size:22px;display:grid;place-items:center;background:var(--chip);border-color:transparent}
+.sel[aria-pressed="false"]{background:transparent;border:1px dashed var(--line);color:var(--muted)}
 .empty{background:var(--surface);border:1px dashed var(--line);border-radius:14px;padding:18px;display:grid;gap:8px;max-width:75ch}
 .empty h3{margin:0;font-family:var(--f-num);font-size:22px}
 .empty ol{margin:0;padding-left:20px;display:grid;gap:4px}
@@ -72,9 +81,20 @@ th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute
 details{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
 summary{cursor:pointer;font-weight:600}
 #log{font-family:var(--f-mono);font-size:12px;white-space:pre-wrap;word-break:break-all;max-height:260px;overflow:auto;margin:8px 0 0;color:var(--muted)}
-.note{font-size:13px;color:var(--muted);max-width:80ch}
+.note{font-size:13px;color:var(--muted);max-width:80ch;margin:0}
+/* barra inferior */
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--dock);color:var(--dock-fg);padding-top:10px;padding-bottom:calc(10px + env(safe-area-inset-bottom,0px))}
+.dock .in{display:flex;align-items:center;gap:10px;justify-content:space-between}
+.clock{display:grid;line-height:1;min-width:0}
+.clock .t{font-family:var(--f-num);font-weight:700;font-size:clamp(38px,11vw,54px);font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.clock .s{font-size:11px;letter-spacing:.1em;text-transform:uppercase;opacity:.75;margin-top:4px;white-space:nowrap}
+.dock .btns{display:flex;gap:8px;align-items:center}
+.dock button{background:transparent;color:var(--dock-fg);border:1px solid rgba(255,255,255,.28)}
+.dock .play{width:64px;height:64px;border-radius:50%;font-size:26px;padding:0;background:var(--accent);color:var(--accent-fg);border:0}
+.dock .round{width:48px;height:48px;border-radius:50%;padding:0;font-size:18px}
+.dock .blk{min-height:44px;font-size:14px}
 /* panel de detalle */
-.ov{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;padding:0 max(0px,env(safe-area-inset-right,0px)) 0 max(0px,env(safe-area-inset-left,0px))}
+.ov{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center}
 @media (min-width:700px){.ov{align-items:center}}
 .sheet{background:var(--surface);color:var(--fg);width:100%;max-width:520px;border-radius:16px 16px 0 0;padding:16px max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:grid;gap:12px;max-height:88vh;overflow:auto}
 @media (min-width:700px){.sheet{border-radius:16px}}
@@ -88,57 +108,61 @@ summary{cursor:pointer;font-weight:600}
 .met .v small{font-size:14px;color:var(--muted);font-weight:500}
 .met.na .v{color:var(--muted);font-size:16px;font-family:var(--f-body);font-weight:500}
 .sheet .ft{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.avg .a b{text-transform:none}
+.list{gap:5px}
+.pl{padding:4px 4px 4px 8px;gap:6px;grid-template-columns:minmax(0,1fr) 40px}
+.main{gap:2px}
+.bar{height:34px}
+.bar .v{font-size:26px;line-height:34px}
+.bar .x{line-height:34px}
+.pl .who{font-size:13px}
 @media (max-width:599px){
-  .tile{padding:6px 8px 7px;gap:2px;border-radius:10px}
-  .tile .val{font-size:clamp(22px,6.6vw,30px)}
-  .tile .nm{font-size:12px}
-  .tile .st{font-size:10px}
-  .board{gap:6px}
-  main{gap:12px;padding-block:10px 40px}
-  .mnote{font-size:12px;margin:0}
+  .bar{height:30px} .bar .v{font-size:23px;line-height:30px} .bar .x{line-height:30px;font-size:11px}
+  .pl{grid-template-columns:minmax(0,1fr) 36px}
+  .pl .who .id{display:none}
+  .dock .in{gap:6px}
+  .clock .t{font-size:clamp(30px,9.5vw,40px)}
+  .dock .play{width:56px;height:56px;font-size:22px}
+  .dock .round{width:44px;height:44px}
+  .dock .blk{padding:6px 10px;font-size:13px}
+  .mnote{display:none}
 }
-@media (prefers-reduced-motion:reduce){.tile .bar i{transition:none}}
+@media (prefers-reduced-motion:reduce){.bar i{transition:none}}
 </style>
 
 <header>
   <div class="wrap row">
     <div class="brand">TrakLive</div>
     <div class="scroller">
-      <button id="btnAdd">+ Agregar pod</button>
+      <button class="primary" id="btnAdd">+ Agregar pod</button>
       <button id="btnAddAll">Buscar sin filtro</button>
       <span class="lbl">Cada</span>
       <select id="selInt" aria-label="Frecuencia de lectura"><option value="3">3 s</option><option value="5">5 s</option><option value="10">10 s</option></select>
-      <button class="primary" id="btnStart">▶ Iniciar</button>
-      <button id="btnPause" hidden>❚❚ Pausa</button>
-      <button id="btnStop" hidden>■ Finalizar</button>
-      <button id="btnBlock" hidden>Nuevo bloque</button>
-      <button id="btnOff" hidden>Apagar pods</button>
-      <button id="btnSort" aria-pressed="false">Orden: llegada</button>
       <button id="btnCsv">Exportar CSV</button>
+      <button id="btnOff" hidden>Apagar pods</button>
       <button id="btnDemo">Demo</button>
     </div>
   </div>
-  <div class="wrap metrics"><div class="scroller" id="mbar" role="group" aria-label="Métrica a mostrar"></div></div>
+  <div class="wrap filters">
+    <label><span class="lbl">Métrica</span><select id="selMetric"></select></label>
+    <label><span class="lbl">Split</span><select id="selSplit"><option value="block">Bloque actual</option><option value="session">Sesión completa</option></select></label>
+    <label><span class="lbl">Orden</span><select id="selSort"><option value="value">Mayor a menor</option><option value="arrival">Llegada</option><option value="name">Nombre</option></select></label>
+    <label><span class="lbl">Selección</span><button id="btnSelAll" type="button">Todos</button></label>
+  </div>
 </header>
 
 <main class="wrap">
   <div class="notice" id="noBle" hidden><b>Este navegador no tiene Bluetooth.</b> En iPhone o iPad abrí esta página con <b>Bluefy</b>. En Android o computadora usá Chrome. Podés probar con <b>Demo</b>.</div>
-
-  <div class="summary">
-    <span class="bk" id="blkName">Bloque 1</span><span class="t" id="blkTime">00:00</span><span class="chip" id="sessState">Sin iniciar</span>
-    <span class="s" id="teamAvg"></span>
-    <span class="s" id="gpsCount"></span>
-  </div>
+  <div class="avg"><span class="a" id="avg">Promedio <b>–</b></span><span class="g" id="gpsCount"></span></div>
   <p class="mnote" id="mnote"></p>
-
-  <div class="board" id="board"></div>
+  <div class="list" id="list"></div>
   <div class="empty" id="empty">
     <h3>Sin pods conectados</h3>
     <ol>
       <li>Borrá <b>Settings.dat</b> del pod y prendelo una sola vez.</li>
       <li>Dejalo afuera unos minutos para que tome GPS.</li>
       <li>Tocá <b>+ Agregar pod</b> y elegí <b>PlayTEK</b> o <b>RON-POD</b>. Repetí con cada jugador.</li>
-      <li>Tocá la tarjeta para ponerle el nombre del jugador.</li>
+      <li>Tocá el nombre de la fila para escribir el del jugador.</li>
     </ol>
     <span class="note"><b>Demo</b> carga 17 jugadores simulados para ver la pantalla completa.</span>
   </div>
@@ -146,13 +170,22 @@ summary{cursor:pointer;font-weight:600}
   <section>
     <h2>Bloques</h2>
     <div class="tablebox"><table id="tblBlocks"><thead><tr><th>Jugador</th><th>Bloque</th><th>Duración</th><th>Dist. m</th><th>m/min</th><th>HSR m*</th><th>Vel. máx</th><th>Impactos</th></tr></thead><tbody></tbody></table></div>
-    <p class="note" id="noBlocks">Al tocar <b>Nuevo bloque</b> se cierra el bloque actual y queda registrado acá.</p>
+    <p class="note" id="noBlocks">Al tocar <b>+ Bloque</b> (abajo, con la sesión en curso) se cierra el bloque actual y queda registrado acá.</p>
   </section>
 
   <details><summary>Registro técnico</summary><pre id="log"></pre></details>
 
   <p class="note">* HSR estimado por la app a partir de la distancia entre lecturas (velocidad media ≥ 18 km/h en cada intervalo); puede quedarse corto en esfuerzos de pocos segundos. Vel. máx. es la de toda la sesión del pod. Impactos usa el umbral propio del pod. Acc, Dec y Player Load no llegan por Bluetooth: se calculan después con los archivos del pod por USB.</p>
 </main>
+
+<div class="dock"><div class="wrap in">
+  <div class="clock"><span class="t" id="clock">00:00:00</span><span class="s" id="clockLbl">Sin iniciar</span></div>
+  <div class="btns">
+    <button class="blk" id="btnBlock" hidden>+ Bloque</button>
+    <button class="round" id="btnStop" hidden aria-label="Finalizar sesión">■</button>
+    <button class="play" id="btnPlay" aria-label="Iniciar sesión">▶</button>
+  </div>
+</div></div>
 
 <div class="ov" id="ov" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-label="Detalle del jugador">
@@ -176,16 +209,16 @@ const $=s=>document.querySelector(s);
 
 /* ---------- Métricas ---------- */
 const METRICS=[
-  {k:'dist',l:'Dist. total',u:'m',d:0},
+  {k:'dist',l:'Distancia',u:'m',d:0},
   {k:'mpm',l:'Mts x min',u:'m/min',d:0},
-  {k:'hsr',l:'HSR +18 km/h',u:'m',d:0,est:true},
-  {k:'acc',l:'Acc +4 m/s²',post:true},
-  {k:'dec',l:'Dec −4 m/s²',post:true},
+  {k:'hsr',l:'HSR +18 km/h (estimado)',u:'m',d:0},
   {k:'vmax',l:'Vel. máx',u:'km/h',d:1},
-  {k:'imp',l:'Impactos',u:'',d:0},
-  {k:'pl',l:'Player Load',post:true},
+  {k:'imp',l:'Impactos (umbral del pod)',u:'',d:0},
+  {k:'acc',l:'Acc +4 m/s² — post-sesión',post:true},
+  {k:'dec',l:'Dec −4 m/s² — post-sesión',post:true},
+  {k:'pl',l:'Player Load — post-sesión',post:true},
 ];
-const NOTES={dist:'Distancia recorrida en el bloque.',mpm:'Distancia del bloque dividida por los minutos del bloque. Debajo, en cada tarjeta: el ritmo de los últimos 60 s.',hsr:'HSR estimado: distancia de los intervalos entre lecturas con velocidad media de 18 km/h o más.',vmax:'Velocidad máxima de toda la sesión del pod.',imp:'Impactos del bloque según el umbral propio del pod.'};
+const NOTES={dist:'Distancia recorrida.',mpm:'Distancia dividida por los minutos. A la derecha de cada barra: ritmo de los últimos 60 s.',hsr:'HSR estimado: distancia de los intervalos entre lecturas con velocidad media de 18 km/h o más.',vmax:'Velocidad máxima de toda la sesión del pod.',imp:'Impactos según el umbral propio del pod.'};
 
 /* ---------- Protocolo ---------- */
 function u16le(b,o){return b[o]|(b[o+1]<<8)}
@@ -204,22 +237,25 @@ const kmh=raw=>raw*0.0036;
 /* ---------- Estado ---------- */
 const pods=new Map(); let order=0;
 let block={n:1,start:Date.now()}; const closedBlocks=[]; const history=[];
-const sess={state:'idle',pausedAt:0,endAt:0}; // idle | running | paused | ended
-function elapsed(){ if(sess.state==='idle')return 0; const end=sess.state==='paused'?sess.pausedAt:sess.state==='ended'?sess.endAt:Date.now(); return Math.max(0,end-block.start); }
-function freezeAll(){ for(const p of pods.values()) if(p.snap) p.pz={session:p.snap.session,dist:p.snap.dist,impacts:p.snap.impacts,hsr:p.hsr}; }
-function resetBases(){ for(const p of pods.values()){ delete p.pz; if(p.snap)p.base={session:p.snap.session,dist:p.snap.dist,impacts:p.snap.impacts,hsr:p.hsr}; else p.base=null; } }
-let metric='dist', sortByValue=false, openKey=null, wakeLock=null;
+const sess={state:'idle',start:0,pausedAt:0,endAt:0}; // idle | running | paused | ended
+let openKey=null, wakeLock=null;
 const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 const names=store.get('traklive.names',{});
 let intervalS=store.get('traklive.int',3); $('#selInt').value=String(intervalS);
-metric=store.get('traklive.metric','dist'); if(!METRICS.find(m=>m.k===metric&&!m.post))metric='dist';
+let metric=store.get('traklive.metric','dist'); if(!METRICS.find(m=>m.k===metric&&!m.post))metric='dist';
+let split=store.get('traklive.split','block'), sortMode=store.get('traklive.sort','value');
+$('#selSplit').value=split; $('#selSort').value=sortMode;
 
 function log(...a){const el=$('#log'); el.textContent=(new Date().toLocaleTimeString()+'  '+a.join(' ')+'\n'+el.textContent).slice(0,30000);}
 const hex=u=>Array.from(u,x=>x.toString(16).padStart(2,'0')).join('');
+function endTime(){return sess.state==='paused'?sess.pausedAt:sess.state==='ended'?sess.endAt:Date.now();}
+function elapsedBlock(){ return sess.state==='idle'?0:Math.max(0,endTime()-block.start); }
+function elapsedSession(){ return sess.state==='idle'?0:Math.max(0,endTime()-sess.start); }
+const snapBase=p=>p.snap?{session:p.snap.session,dist:p.snap.dist,impacts:p.snap.impacts,hsr:p.hsr}:null;
 
 /* ---------- Pod real ---------- */
 class Pod{
-  constructor(device){this.device=device;this.key=device.id;this.order=order++;this.id=null;this.status='Conectando';this.snap=null;this.base=null;this.samples=[];this.buf=new Uint8Array(0);this.pending=null;this.lastOk=0;this.retry=0;this.removed=false;this.timer=null;this.hsr=0;this.disc=0;
+  constructor(device){this.device=device;this.key=device.id;this.order=order++;this.id=null;this.status='Conectando';this.snap=null;this.base=null;this.sbase=null;this.samples=[];this.buf=new Uint8Array(0);this.pending=null;this.lastOk=0;this.retry=0;this.removed=false;this.timer=null;this.hsr=0;this.disc=0;this.on=true;
     device.addEventListener('gattserverdisconnected',()=>this.onDisc());}
   label(){return names[this.id]||this.device.name||'Pod'}
   async connect(){
@@ -252,7 +288,7 @@ class Pod{
     const first=this.buf.length===0;
     const nb=new Uint8Array(this.buf.length+p.length); nb.set(this.buf); nb.set(p,this.buf.length); this.buf=nb;
     const exp=expectedLen(this.buf);
-    if(first&&isFinite(exp)) this.armTimeout(Math.min(20000,2000+exp/20*30)); // más sesiones guardadas = respuesta más larga
+    if(first&&isFinite(exp)) this.armTimeout(Math.min(20000,2000+exp/20*30));
     if(this.buf.length>=exp) this.finish(false);
   }
   finish(partial){ if(this.pending){clearTimeout(this.pending);this.pending=null} const buf=this.buf; this.buf=new Uint8Array(0);
@@ -268,9 +304,8 @@ class Pod{
 /* ---------- Pod simulado (mismo formato de bytes que el real) ---------- */
 const POS=['Pilar','Hooker','Pilar','2ª línea','2ª línea','Ala','Ala','Octavo','Medio scrum','Apertura','Wing','Centro','Centro','Wing','Fullback','Suplente','Suplente'];
 class FakePod{
-  constructor(i){this.key='demo'+i;this.order=order++;this.i=i;this.id='DEMO-'+String(i+1).padStart(2,'0');this.device={name:'PlayTEK'};this.status='Conectado';this.snap=null;this.base=null;this.samples=[];this.removed=false;this.hsr=0;this.disc=0;
-    this.sess=40+i;this.d=0;this.imp=0;this.top=0;this.valid=0;this.gpsAt=Date.now()+(i===16?25000:i%5===0?6000:0);
-    this.pace=i<8?1.5:2.0; this.timer=null;}
+  constructor(i){this.key='demo'+i;this.order=order++;this.i=i;this.id='DEMO-'+String(i+1).padStart(2,'0');this.device={name:'PlayTEK'};this.status='Conectado';this.snap=null;this.base=null;this.sbase=null;this.samples=[];this.removed=false;this.hsr=0;this.disc=0;this.on=true;
+    this.sess=40+i;this.d=0;this.imp=0;this.top=0;this.valid=0;this.gpsAt=Date.now()+(i===16?25000:i%5===0?6000:0);this.pace=i<8?1.5:2.0;this.timer=null;}
   async connect(){render();this.schedule(200+this.i*60)}
   label(){return names[this.id]||(this.i+1)+' · '+POS[this.i]}
   schedule(ms){clearTimeout(this.timer); if(!this.removed) this.timer=setTimeout(()=>this.poll(),ms);}
@@ -294,15 +329,14 @@ function ingest(pod,buf,partial){
   if(partial){ pod.bad=(pod.bad||0)+1; log(pod.label(),'respuesta incompleta descartada'); return; }
   const cur=list.reduce((a,b)=>b.session>a.session?b:a);
   const prev0=pod.snap;
-  // Filtro de lecturas imposibles (paquetes perdidos o mezclados por Bluetooth)
-  if(prev0){
+  if(prev0){ // filtro de lecturas imposibles (paquetes perdidos o mezclados)
     const reject=why=>{ pod.bad=(pod.bad||0)+1; log(pod.label(),'lectura descartada:',why,'(sesión',cur.session,'dist',cur.dist+')'); };
     if(cur.session<prev0.session){ reject('la sesión retrocedió'); return; }
     if(cur.session===prev0.session&&(cur.dist<prev0.dist||cur.valid<prev0.valid||cur.impacts<prev0.impacts)){ reject('los valores bajaron'); return; }
     if(cur.session===prev0.session&&cur.dist-prev0.dist>12*Math.max(1,(Date.now()-pod.lastT)/1000)){ reject('salto de distancia imposible'); return; }
     if(cur.session>prev0.session){
       if(cur.session-prev0.session>20){ reject('número de sesión inválido'); return; }
-      if(pod.cand!==cur.session){ pod.cand=cur.session; log(pod.label(),'posible sesión nueva',cur.session,', se confirma en la próxima lectura'); return; }
+      if(pod.cand!==cur.session){ pod.cand=cur.session; log(pod.label(),'posible sesión nueva',cur.session,'; se confirma en la próxima lectura'); return; }
     }
   }
   pod.cand=null;
@@ -312,23 +346,24 @@ function ingest(pod,buf,partial){
     const dd=cur.dist-prev.dist, dt=(now-pod.lastT)/1000;
     if(dd>0&&dt>0&&dd/dt*3.6>=HSR_KMH)pod.hsr+=dd;
   } else if(prev){ pod.hsr=0; }
-  if(!prev&&cur.valid>0)pod.lastValid=pod.lastValid||0;
   pod.snap=cur; pod.lastOk=now; pod.lastT=now;
-  if(!pod.base||pod.base.session!==cur.session){
-    pod.base=pod.base&&pod.base.session!==cur.session?{session:cur.session,dist:0,impacts:0,hsr:0}:{session:cur.session,dist:cur.dist,impacts:cur.impacts,hsr:pod.hsr};
-  }
+  const zero={session:cur.session,dist:0,impacts:0,hsr:0};
+  if(!pod.base||pod.base.session!==cur.session) pod.base=pod.base?zero:snapBase(pod);
+  if(!pod.sbase||pod.sbase.session!==cur.session) pod.sbase=pod.sbase?{...zero}:snapBase(pod);
   pod.samples.push([now,cur.dist]); while(pod.samples.length&&now-pod.samples[0][0]>70000)pod.samples.shift();
-  history.push({t:new Date(now).toISOString(),jugador:pod.label(),pod:pod.id,bloque:block.n,sesion:cur.session,dist_total:cur.dist,hsr_est:Math.round(pod.hsr),sprint_pod:cur.sprint,vmax_kmh:kmh(cur.topRaw).toFixed(1),impactos:cur.impacts,power_plays:cur.power,registros:cur.valid});
+  history.push({t:new Date(now).toISOString(),jugador:pod.label(),pod:pod.id,bloque:block.n,estado:sess.state,sesion_pod:cur.session,dist_total:cur.dist,hsr_est:Math.round(pod.hsr),sprint_pod:cur.sprint,vmax_kmh:kmh(cur.topRaw).toFixed(1),impactos:cur.impacts,power_plays:cur.power,registros:cur.valid});
   if(history.length>40000)history.shift();
   scheduleRender();
 }
-function stats(p){
-  if(!p.snap||!p.base)return null;
+function stats(p,scope){
+  scope=scope||split;
+  if(!p.snap||!p.base||!p.sbase)return null;
   const frozen=(sess.state==='paused'||sess.state==='ended')&&p.pz&&p.pz.session===p.snap.session;
   const s=frozen?Object.assign({},p.snap,{dist:p.pz.dist,impacts:p.pz.impacts}):p.snap, hsrNow=frozen?p.pz.hsr:p.hsr;
-  const b=p.base, ms=elapsed(), dist=sess.state==='idle'?0:Math.max(0,s.dist-b.dist);
+  const b=scope==='session'?p.sbase:p.base, ms=scope==='session'?elapsedSession():elapsedBlock(), idle=sess.state==='idle';
+  const dist=idle?0:Math.max(0,s.dist-b.dist);
   let mm60=null; const sm=p.samples; if(sess.state==='running'&&sm.length>1){const last=sm[sm.length-1]; const a=sm.find(x=>last[0]-x[0]<=60000)||sm[0]; const dt=(last[0]-a[0])/60000; if(dt>0.15)mm60=(last[1]-a[1])/dt;}
-  return {dist,mpm:ms>5000?dist/(ms/60000):0,mm60,hsr:sess.state==='idle'?0:Math.max(0,hsrNow-b.hsr),vmax:kmh(s.topRaw),imp:sess.state==='idle'?0:Math.max(0,s.impacts-b.impacts),acc:null,dec:null,pl:null,total:s.dist,sprint:s.sprint,session:s.session,valid:s.valid};
+  return {dist,mpm:ms>5000?dist/(ms/60000):0,mm60,hsr:idle?0:Math.max(0,hsrNow-b.hsr),vmax:kmh(s.topRaw),imp:idle?0:Math.max(0,s.impacts-b.impacts),acc:null,dec:null,pl:null,total:s.dist,sprint:s.sprint,session:s.session,valid:s.valid};
 }
 function state(p){
   const now=Date.now(), age=(now-p.lastOk)/1000;
@@ -341,64 +376,104 @@ function state(p){
 
 /* ---------- Interfaz ---------- */
 const fmt=(v,d=0)=>v==null||!isFinite(v)?'–':v.toLocaleString('es-AR',{maximumFractionDigits:d,minimumFractionDigits:d});
-function buildMetricBar(){const bar=$('#mbar'); bar.innerHTML='';
-  for(const m of METRICS){const b=document.createElement('button'); b.type='button'; b.className='mchip'+(m.post?' post':''); b.dataset.k=m.k;
-    b.innerHTML=m.l+(m.post?'<small>post-sesión</small>':''); b.setAttribute('aria-pressed',String(m.k===metric));
-    b.addEventListener('click',()=>{ if(m.post){$('#mnote').textContent=m.l+' no llega por Bluetooth: el pod solo transmite el resumen de la sesión. Se calcula después con los datos crudos del pod por USB.';return}
-      metric=m.k; store.set('traklive.metric',metric); buildMetricBar(); render(); });
-    bar.appendChild(b);}
-  const m=METRICS.find(x=>x.k===metric); $('#mnote').textContent=NOTES[metric]||'';
+const shortId=p=>p.id?(p.id.startsWith('DEMO')?p.id:p.id.slice(-4)):'';
+function buildMetricSelect(){const sel=$('#selMetric'); sel.innerHTML='';
+  for(const m of METRICS){const o=document.createElement('option'); o.value=m.k; o.textContent=m.l; if(m.post)o.disabled=true; sel.appendChild(o);}
+  sel.value=metric; $('#mnote').textContent=NOTES[metric]||'';
 }
 let rq=false; function scheduleRender(){ if(!rq){rq=true; requestAnimationFrame(()=>{rq=false; render();});} }
 function render(){
-  const board=$('#board'); $('#empty').hidden=pods.size>0;
+  const list=$('#list'); $('#empty').hidden=pods.size>0;
   const m=METRICS.find(x=>x.k===metric);
   const rows=[...pods.values()].map(p=>({p,s:stats(p),st:state(p)}));
-  const vals=rows.map(r=>r.s?r.s[metric]:null).filter(v=>v!=null&&isFinite(v));
-  const max=Math.max(1,...vals);
-  if(sortByValue) rows.sort((a,b)=>((b.s?b.s[metric]:-1)??-1)-((a.s?a.s[metric]:-1)??-1)); else rows.sort((a,b)=>a.p.order-b.p.order);
+  const valOf=r=>r.s?r.s[metric]:null;
+  const sel=rows.filter(r=>r.p.on), vals=sel.map(valOf).filter(v=>v!=null&&isFinite(v));
+  const max=Math.max(1e-9,...rows.map(valOf).filter(v=>v!=null&&isFinite(v)),0);
+  if(sortMode==='value') rows.sort((a,b)=>(valOf(b)??-1)-(valOf(a)??-1)||a.p.order-b.p.order);
+  else if(sortMode==='name') rows.sort((a,b)=>a.p.label().localeCompare(b.p.label(),'es',{numeric:true}));
+  else rows.sort((a,b)=>a.p.order-b.p.order);
+  const lead=vals.length?Math.max(...vals):null;
   const keep=new Set();
   rows.forEach((r,idx)=>{ const k=r.p.key; keep.add(k);
-    let el=board.querySelector('[data-k="'+CSS.escape(k)+'"]');
-    if(!el){el=document.createElement('button'); el.type='button'; el.className='tile'; el.dataset.k=k;
-      el.innerHTML='<div class="top"><span class="dot"></span><span class="nm"></span></div><div class="val"></div><div class="bar"><i></i></div><div class="st"></div>';
-      el.addEventListener('click',()=>openDetail(k)); }
-    if(board.children[idx]!==el) board.insertBefore(el,board.children[idx]||null);
-    const [txt,cls]=r.st;
-    el.querySelector('.dot').className='dot '+cls; el.classList.toggle('bad',cls==='bad');
+    let el=list.querySelector('[data-k="'+CSS.escape(k)+'"]');
+    if(!el){el=document.createElement('div'); el.className='pl'; el.dataset.k=k;
+      el.innerHTML='<div class="main"><button type="button" class="who"><span class="dot"></span><span class="nm"></span><span class="id"></span><span class="st"></span></button><div class="bar"><i></i><span class="v"></span><span class="x"></span></div></div><button type="button" class="sel" aria-label="Incluir en el promedio">✓</button>';
+      el.querySelector('.who').addEventListener('click',()=>openDetail(k));
+      el.querySelector('.bar').addEventListener('click',()=>openDetail(k));
+      el.querySelector('.sel').addEventListener('click',()=>{const p=pods.get(k); p.on=!p.on; render();}); }
+    if(list.children[idx]!==el) list.insertBefore(el,list.children[idx]||null);
+    const [txt,cls]=r.st, v=valOf(r);
+    el.classList.toggle('off',!r.p.on); el.classList.toggle('bad',cls==='bad'); el.classList.toggle('lead',r.p.on&&v!=null&&v===lead&&v>0);
+    el.querySelector('.dot').className='dot '+cls;
     el.querySelector('.nm').textContent=r.p.label();
-    const v=r.s?r.s[metric]:null;
-    el.querySelector('.val').innerHTML=r.s?fmt(v,m.d)+(m.u?'<small>'+m.u+'</small>':''):'–';
-    el.querySelector('.bar i').style.width=(v!=null&&isFinite(v)?Math.round(100*v/max):0)+'%';
-    const st=el.querySelector('.st'); st.className='st'+(cls==='ok'?'':' '+cls);
-    st.textContent=cls==='ok'?(metric==='mpm'&&r.s&&r.s.mm60!=null?'60 s: '+fmt(r.s.mm60)+' m/min':(r.s?fmt(r.s.dist)+' m · '+fmt(r.s.vmax,1)+' km/h':txt)):txt;
+    el.querySelector('.id').textContent=shortId(r.p)?'(Pod '+shortId(r.p)+')':'';
+    const st=el.querySelector('.st'); st.textContent=cls==='ok'?'':txt; st.className='st '+cls;
+    el.querySelector('.v').innerHTML=r.s?fmt(v,m.d)+(m.u?'<small>'+m.u+'</small>':''):'–';
+    el.querySelector('.bar i').style.width=(v!=null&&isFinite(v)&&max>0?Math.round(100*v/max):0)+'%';
+    el.querySelector('.x').textContent=metric==='mpm'&&r.s&&r.s.mm60!=null?'60 s: '+fmt(r.s.mm60):'';
+    el.querySelector('.sel').setAttribute('aria-pressed',String(r.p.on));
   });
-  [...board.children].forEach(c=>{if(!keep.has(c.dataset.k))c.remove()});
+  [...list.children].forEach(c=>{if(!keep.has(c.dataset.k))c.remove()});
   const ok=rows.filter(r=>r.st[1]==='ok').length;
   $('#gpsCount').innerHTML=pods.size?'<b>'+ok+'</b> de '+pods.size+' con GPS':'';
-  $('#teamAvg').innerHTML=vals.length?'Promedio '+m.l.toLowerCase()+': <b>'+fmt(vals.reduce((a,b)=>a+b,0)/vals.length,m.d)+(m.u?' '+m.u:'')+'</b>':'';
+  $('#avg').innerHTML='Promedio'+(sel.length<rows.length?' ('+sel.length+' sel.)':'')+' <b>'+(vals.length?fmt(vals.reduce((a,b)=>a+b,0)/vals.length,m.d)+(m.u?' '+m.u:''):'–')+'</b>';
+  $('#btnSelAll').textContent=rows.every(r=>r.p.on)?'Todos':'Seleccionados: '+sel.length;
   if(openKey)fillDetail();
 }
 function openDetail(k){openKey=k; $('#ov').hidden=false; const p=pods.get(k); $('#dName').value=p.label(); fillDetail(); }
 function closeDetail(){openKey=null; $('#ov').hidden=true;}
 function fillDetail(){const p=pods.get(openKey); if(!p){closeDetail();return}
-  const s=stats(p), [txt,cls]=state(p); const c=$('#dChip'); c.textContent=txt; c.className='chip '+cls;
-  const items=[['Dist. bloque',s&&fmt(s.dist),'m'],['Mts x min',s&&fmt(s.mpm),'m/min'],['m/min 60 s',s&&fmt(s.mm60),''],['HSR +18 (est.)',s&&fmt(s.hsr),'m'],['Vel. máx sesión',s&&fmt(s.vmax,1),'km/h'],['Impactos bloque',s&&fmt(s.imp),''],['Sprint (pod)',s&&fmt(s.sprint),'m'],['Total sesión',s&&fmt(s.total),'m'],['Acc +4',null,'post'],['Dec −4',null,'post'],['Player Load',null,'post']];
+  const s=stats(p,'block'), ss=stats(p,'session'), [txt,cls]=state(p); const c=$('#dChip'); c.textContent=txt; c.className='chip '+cls;
+  const items=[['Dist. bloque',s&&fmt(s.dist),'m'],['Dist. sesión',ss&&fmt(ss.dist),'m'],['Mts x min bloque',s&&fmt(s.mpm),'m/min'],['m/min 60 s',s&&fmt(s.mm60),''],['HSR +18 bloque (est.)',s&&fmt(s.hsr),'m'],['Vel. máx sesión',s&&fmt(s.vmax,1),'km/h'],['Impactos bloque',s&&fmt(s.imp),''],['Sprint (pod)',s&&fmt(s.sprint),'m'],['Acc +4',null,'post'],['Dec −4',null,'post'],['Player Load',null,'post']];
   $('#dMets').innerHTML=items.map(([l,v,u])=>u==='post'?'<div class="met na"><div class="l">'+l+'</div><div class="v">post-sesión</div></div>':'<div class="met"><div class="l">'+l+'</div><div class="v">'+(v||'–')+(u?' <small>'+u+'</small>':'')+'</div></div>').join('');
-  $('#dInfo').textContent=(p.id||'')+(s?' · sesión '+s.session:'')+(p.respN!=null?' · '+p.respN+' sesiones en el pod, '+p.respMs+' ms':'')+(p.disc?' · cortes: '+p.disc:'')+(p.bad?' · lecturas descartadas: '+p.bad:'');
+  $('#dInfo').textContent=(p.id||'')+(s?' · sesión del pod '+s.session:'')+(p.respN!=null?' · '+p.respN+' sesiones guardadas, '+p.respMs+' ms':'')+(p.disc?' · cortes: '+p.disc:'')+(p.bad?' · lecturas descartadas: '+p.bad:'');
 }
 function renderBlocks(){const tb=$('#tblBlocks tbody'); tb.innerHTML=''; $('#noBlocks').hidden=closedBlocks.length>0;
   for(const r of closedBlocks.slice().reverse()){const tr=document.createElement('tr');
     [r.jugador,'Bloque '+r.bloque,r.dur,fmt(r.dist),fmt(r.mpm),fmt(r.hsr),fmt(r.vmax,1),fmt(r.imp)].forEach(v=>{const td=document.createElement('td');td.textContent=v;tr.appendChild(td)}); tb.appendChild(tr);}}
-const mmss=ms=>{const s=Math.floor(ms/1000);return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')};
-setInterval(()=>{$('#blkTime').textContent=mmss(elapsed()); render();},1000);
+const hms=ms=>{const s=Math.floor(ms/1000);return [Math.floor(s/3600),Math.floor(s/60)%60,s%60].map(x=>String(x).padStart(2,'0')).join(':')};
+function tick(){ const ms=split==='session'?elapsedSession():elapsedBlock(); $('#clock').textContent=hms(ms);
+  const lbl={idle:'Sin iniciar',running:'En curso',paused:'En pausa',ended:'Finalizada'}[sess.state];
+  $('#clockLbl').textContent=(split==='session'?'Sesión':'Bloque '+block.n)+' · '+lbl; }
+setInterval(()=>{tick(); render();},1000);
 function updateControls(){
-  const st=sess.state, show=(id,v)=>{$(id).hidden=!v};
-  $('#btnStart').textContent=st==='paused'?'▶ Reanudar':st==='ended'?'▶ Nueva sesión':'▶ Iniciar';
-  show('#btnStart',st!=='running'); show('#btnPause',st==='running'); show('#btnStop',st==='running'||st==='paused');
-  show('#btnBlock',st==='running'); show('#btnOff',st==='ended'&&pods.size>0);
-  const c=$('#sessState'); c.textContent={idle:'Sin iniciar',running:'En curso',paused:'En pausa',ended:'Finalizada'}[st]; c.className='chip '+(st==='running'?'ok':st==='paused'?'warn':'');
-  $('#blkName').textContent='Bloque '+block.n;
+  const st=sess.state, play=$('#btnPlay');
+  play.textContent=st==='running'?'❚❚':'▶'; play.setAttribute('aria-label',st==='running'?'Pausar sesión':st==='paused'?'Reanudar sesión':'Iniciar sesión');
+  $('#btnStop').hidden=!(st==='running'||st==='paused'); $('#btnBlock').hidden=st!=='running';
+  $('#btnOff').hidden=!(st==='ended'&&pods.size>0); tick();
+}
+
+/* ---------- Sesión ---------- */
+function freezeAll(){ for(const p of pods.values()) if(p.snap) p.pz=snapBase(p); }
+function closeBlockRows(){ const dur=hms(elapsedBlock());
+  for(const p of pods.values()){const s=stats(p,'block'); if(s)closedBlocks.push({jugador:p.label(),bloque:block.n,dur,dist:s.dist,mpm:s.mpm,hsr:s.hsr,vmax:s.vmax,imp:s.imp});} }
+function playPause(){
+  const now=Date.now();
+  if(sess.state==='running'){ sess.pausedAt=now; freezeAll(); sess.state='paused'; log('Sesión en pausa'); }
+  else if(sess.state==='paused'){
+    for(const p of pods.values()){ if(p.pz&&p.snap&&p.pz.session===p.snap.session){ const dd=p.snap.dist-p.pz.dist, di=p.snap.impacts-p.pz.impacts, dh=p.hsr-p.pz.hsr;
+      for(const b of [p.base,p.sbase]) if(b&&b.session===p.snap.session){ b.dist+=dd; b.impacts+=di; b.hsr+=dh; } } delete p.pz; }
+    const pause=now-sess.pausedAt; block.start+=pause; sess.start+=pause; sess.state='running'; log('Sesión reanudada');
+  } else {
+    if(sess.state==='ended')block={n:block.n+1,start:now}; else block={n:1,start:now};
+    sess.start=now; for(const p of pods.values()){ delete p.pz; p.base=snapBase(p); p.sbase=snapBase(p); }
+    sess.state='running'; keepAwake(); log('Sesión iniciada');
+  }
+  updateControls(); render();
+}
+function newBlock(){ if(sess.state!=='running')return; closeBlockRows(); for(const p of pods.values())p.base=snapBase(p); block={n:block.n+1,start:Date.now()}; renderBlocks(); updateControls(); render(); }
+function stopSession(){
+  if(sess.state==='paused')sess.endAt=sess.pausedAt; else { sess.endAt=Date.now(); freezeAll(); }
+  sess.state='ended'; closeBlockRows(); renderBlocks(); log('Sesión finalizada'); updateControls(); render();
+}
+let offArm=0;
+async function powerOff(){
+  const btn=$('#btnOff'), real=[...pods.values()].filter(p=>p instanceof Pod);
+  if(Date.now()-offArm>4000){ offArm=Date.now(); btn.textContent='Tocá de nuevo para apagar '+pods.size+' pods'; setTimeout(()=>{btn.textContent='Apagar pods'},4000); return; }
+  offArm=0; btn.textContent='Apagando…';
+  for(const p of real){ try{ p.reconnecting=true; if(p.cmd) await p.cmd.writeValue(CMD_OFF); log(p.label(),'apagado'); }catch(e){ log(p.label(),'no se pudo apagar:',e.message); } }
+  for(const [k,p] of pods){ p.remove(); pods.delete(k); }
+  btn.textContent='Apagar pods'; updateControls(); render();
 }
 
 /* ---------- Acciones ---------- */
@@ -412,36 +487,6 @@ async function addPod(all){
     const p=new Pod(dev); pods.set(p.key,p); render(); keepAwake();
     await p.connect();
   }catch(e){ log('No se pudo agregar el pod:',(e&&e.name)||'',(e&&e.message)||e); render(); }
-}
-function closeBlockRows(){
-  const dur=mmss(elapsed());
-  for(const p of pods.values()){const s=stats(p); if(s)closedBlocks.push({jugador:p.label(),bloque:block.n,dur,dist:s.dist,mpm:s.mpm,hsr:s.hsr,vmax:s.vmax,imp:s.imp});}
-}
-function newBlock(){ if(sess.state!=='running')return; closeBlockRows(); resetBases(); block={n:block.n+1,start:Date.now()}; renderBlocks(); updateControls(); render(); }
-function startSession(){
-  const now=Date.now();
-  if(sess.state==='paused'){
-    for(const p of pods.values()){ if(p.pz&&p.snap&&p.base&&p.pz.session===p.snap.session){ p.base.dist+=p.snap.dist-p.pz.dist; p.base.impacts+=p.snap.impacts-p.pz.impacts; p.base.hsr+=p.hsr-p.pz.hsr; } delete p.pz; }
-    block.start+=now-sess.pausedAt; log('Sesión reanudada');
-  } else {
-    if(sess.state==='ended')block={n:block.n+1,start:now}; else block={n:1,start:now};
-    resetBases(); log('Sesión iniciada');
-  }
-  sess.state='running'; keepAwake(); updateControls(); render();
-}
-function pauseSession(){ if(sess.state!=='running')return; sess.pausedAt=Date.now(); freezeAll(); sess.state='paused'; log('Sesión en pausa'); updateControls(); render(); }
-function stopSession(){
-  if(sess.state==='paused'){ sess.endAt=sess.pausedAt; } else { sess.endAt=Date.now(); freezeAll(); }
-  sess.state='ended'; closeBlockRows(); renderBlocks(); log('Sesión finalizada'); updateControls(); render();
-}
-let offArm=0;
-async function powerOff(){
-  const btn=$('#btnOff'), real=[...pods.values()].filter(p=>p instanceof Pod);
-  if(Date.now()-offArm>4000){ offArm=Date.now(); btn.textContent='Tocá de nuevo para apagar '+pods.size+' pods'; setTimeout(()=>{btn.textContent='Apagar pods'},4000); return; }
-  offArm=0; btn.textContent='Apagando…';
-  for(const p of real){ try{ p.reconnecting=true; if(p.cmd) await p.cmd.writeValue(CMD_OFF); log(p.label(),'apagado'); }catch(e){ log(p.label(),'no se pudo apagar:',e.message); } }
-  for(const [k,p] of pods){ p.remove(); pods.delete(k); }
-  btn.textContent='Apagar pods'; updateControls(); render();
 }
 function toCsv(rows){if(!rows.length)return'';const cols=Object.keys(rows[0]);return [cols.join(',')].concat(rows.map(r=>cols.map(c=>{const v=String(r[c]??'');return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(','))).join('\n');}
 async function exportCsv(){
@@ -461,15 +506,17 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 
 $('#btnAdd').addEventListener('click',()=>addPod(false));
 $('#btnAddAll').addEventListener('click',()=>addPod(true));
-$('#btnBlock').addEventListener('click',newBlock);
-$('#btnStart').addEventListener('click',startSession);
-$('#btnPause').addEventListener('click',pauseSession);
+$('#btnPlay').addEventListener('click',playPause);
 $('#btnStop').addEventListener('click',stopSession);
+$('#btnBlock').addEventListener('click',newBlock);
 $('#btnOff').addEventListener('click',powerOff);
 $('#btnCsv').addEventListener('click',exportCsv);
 $('#btnDemo').addEventListener('click',demo);
-$('#btnSort').addEventListener('click',e=>{sortByValue=!sortByValue; e.currentTarget.textContent='Orden: '+(sortByValue?'mayor a menor':'llegada'); e.currentTarget.setAttribute('aria-pressed',String(sortByValue)); render();});
 $('#selInt').addEventListener('change',e=>{intervalS=+e.target.value;store.set('traklive.int',intervalS)});
+$('#selMetric').addEventListener('change',e=>{metric=e.target.value; store.set('traklive.metric',metric); $('#mnote').textContent=NOTES[metric]||''; render();});
+$('#selSplit').addEventListener('change',e=>{split=e.target.value; store.set('traklive.split',split); tick(); render();});
+$('#selSort').addEventListener('change',e=>{sortMode=e.target.value; store.set('traklive.sort',sortMode); render();});
+$('#btnSelAll').addEventListener('click',()=>{const all=[...pods.values()].every(p=>p.on); for(const p of pods.values())p.on=!all||false; if(!all)for(const p of pods.values())p.on=true; render();});
 $('#dName').addEventListener('change',()=>{const p=pods.get(openKey); if(p&&p.id){names[p.id]=$('#dName').value.trim();store.set('traklive.names',names);render();}});
 $('#dClose').addEventListener('click',closeDetail);
 $('#ov').addEventListener('click',e=>{if(e.target.id==='ov')closeDetail()});
@@ -477,6 +524,6 @@ $('#dRemove').addEventListener('click',()=>{const p=pods.get(openKey); if(p){p.r
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&openKey)closeDetail()});
 if(!navigator.bluetooth)$('#noBle').hidden=false;
 window.__traklive={parseSnapshots,expectedLen,ingest,stats};
-buildMetricBar(); updateControls(); render(); renderBlocks();
+buildMetricSelect(); updateControls(); render(); renderBlocks();
 })();
 </script>
