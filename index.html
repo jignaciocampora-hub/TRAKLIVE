@@ -291,8 +291,21 @@ class FakePod{
 function ingest(pod,buf,partial){
   const list=parseSnapshots(buf);
   if(!list.length){log(pod.label(),'respuesta sin sesiones',hex(buf).slice(0,80));return}
+  if(partial){ pod.bad=(pod.bad||0)+1; log(pod.label(),'respuesta incompleta descartada'); return; }
   const cur=list.reduce((a,b)=>b.session>a.session?b:a);
-  if(partial&&pod.snap&&cur.session<pod.snap.session)return; // respuesta cortada antes de la sesión actual
+  const prev0=pod.snap;
+  // Filtro de lecturas imposibles (paquetes perdidos o mezclados por Bluetooth)
+  if(prev0){
+    const reject=why=>{ pod.bad=(pod.bad||0)+1; log(pod.label(),'lectura descartada:',why,'(sesión',cur.session,'dist',cur.dist+')'); };
+    if(cur.session<prev0.session){ reject('la sesión retrocedió'); return; }
+    if(cur.session===prev0.session&&(cur.dist<prev0.dist||cur.valid<prev0.valid||cur.impacts<prev0.impacts)){ reject('los valores bajaron'); return; }
+    if(cur.session===prev0.session&&cur.dist-prev0.dist>12*Math.max(1,(Date.now()-pod.lastT)/1000)){ reject('salto de distancia imposible'); return; }
+    if(cur.session>prev0.session){
+      if(cur.session-prev0.session>20){ reject('número de sesión inválido'); return; }
+      if(pod.cand!==cur.session){ pod.cand=cur.session; log(pod.label(),'posible sesión nueva',cur.session,', se confirma en la próxima lectura'); return; }
+    }
+  }
+  pod.cand=null;
   const now=Date.now(), prev=pod.snap;
   if(prev&&prev.session===cur.session){
     if(cur.valid>prev.valid)pod.lastValid=now;
@@ -372,7 +385,7 @@ function fillDetail(){const p=pods.get(openKey); if(!p){closeDetail();return}
   const s=stats(p), [txt,cls]=state(p); const c=$('#dChip'); c.textContent=txt; c.className='chip '+cls;
   const items=[['Dist. bloque',s&&fmt(s.dist),'m'],['Mts x min',s&&fmt(s.mpm),'m/min'],['m/min 60 s',s&&fmt(s.mm60),''],['HSR +18 (est.)',s&&fmt(s.hsr),'m'],['Vel. máx sesión',s&&fmt(s.vmax,1),'km/h'],['Impactos bloque',s&&fmt(s.imp),''],['Sprint (pod)',s&&fmt(s.sprint),'m'],['Total sesión',s&&fmt(s.total),'m'],['Acc +4',null,'post'],['Dec −4',null,'post'],['Player Load',null,'post']];
   $('#dMets').innerHTML=items.map(([l,v,u])=>u==='post'?'<div class="met na"><div class="l">'+l+'</div><div class="v">post-sesión</div></div>':'<div class="met"><div class="l">'+l+'</div><div class="v">'+(v||'–')+(u?' <small>'+u+'</small>':'')+'</div></div>').join('');
-  $('#dInfo').textContent=(p.id||'')+(s?' · sesión '+s.session:'')+(p.respN!=null?' · '+p.respN+' sesiones en el pod, '+p.respMs+' ms':'')+(p.disc?' · cortes: '+p.disc:'');
+  $('#dInfo').textContent=(p.id||'')+(s?' · sesión '+s.session:'')+(p.respN!=null?' · '+p.respN+' sesiones en el pod, '+p.respMs+' ms':'')+(p.disc?' · cortes: '+p.disc:'')+(p.bad?' · lecturas descartadas: '+p.bad:'');
 }
 function renderBlocks(){const tb=$('#tblBlocks tbody'); tb.innerHTML=''; $('#noBlocks').hidden=closedBlocks.length>0;
   for(const r of closedBlocks.slice().reverse()){const tr=document.createElement('tr');
@@ -463,7 +476,7 @@ $('#ov').addEventListener('click',e=>{if(e.target.id==='ov')closeDetail()});
 $('#dRemove').addEventListener('click',()=>{const p=pods.get(openKey); if(p){p.remove();pods.delete(openKey);} closeDetail(); render();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&openKey)closeDetail()});
 if(!navigator.bluetooth)$('#noBle').hidden=false;
-window.__traklive={parseSnapshots,expectedLen};
+window.__traklive={parseSnapshots,expectedLen,ingest,stats};
 buildMetricBar(); updateControls(); render(); renderBlocks();
 })();
 </script>
