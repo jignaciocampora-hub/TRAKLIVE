@@ -134,11 +134,13 @@ summary{cursor:pointer;font-weight:600}
   <div class="wrap row">
     <div class="brand">TrakLive</div>
     <div class="scroller">
+      <button class="primary" id="btnSaved" hidden>Conectar guardados</button>
       <button class="primary" id="btnAdd">+ Agregar pod</button>
       <button id="btnAddAll">Buscar sin filtro</button>
       <span class="lbl">Cada</span>
       <select id="selInt" aria-label="Frecuencia de lectura"><option value="3">3 s</option><option value="5">5 s</option><option value="10">10 s</option></select>
       <button id="btnCsv">Exportar CSV</button>
+      <button id="btnNames">Nombres</button>
       <button id="btnOff" hidden>Apagar pods</button>
       <button id="btnDemo">Demo</button>
     </div>
@@ -186,6 +188,16 @@ summary{cursor:pointer;font-weight:600}
     <button class="play" id="btnPlay" aria-label="Iniciar sesión">▶</button>
   </div>
 </div></div>
+
+<div class="ov" id="ovN" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-label="Nombres de los jugadores">
+    <h2 style="margin:0;font-family:var(--f-num);font-size:24px">Nombres de los jugadores</h2>
+    <p class="note" id="nSrc"></p>
+    <p class="note">Para usarlos en todos tus dispositivos: tocá <b>Copiar</b>, andá a tu repositorio de GitHub, abrí (o creá) el archivo <b>jugadores.json</b>, pegá el texto y tocá <b>Commit changes</b>. Cada dispositivo los carga al abrir TrakLive.</p>
+    <textarea id="nText" rows="10" spellcheck="false" style="width:100%;font-family:var(--f-mono);font-size:13px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:10px" aria-label="Nombres en formato JSON"></textarea>
+    <div class="ft"><span id="nMsg"></span><span style="display:flex;gap:8px"><button id="nApply" type="button">Aplicar texto</button><button id="nCopy" type="button">Copiar</button><button class="primary" id="nClose" type="button">Listo</button></span></div>
+  </div>
+</div>
 
 <div class="ov" id="ov" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-label="Detalle del jugador">
@@ -241,6 +253,12 @@ const sess={state:'idle',start:0,pausedAt:0,endAt:0}; // idle | running | paused
 let openKey=null, wakeLock=null;
 const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 const names=store.get('traklive.names',{});
+let rosterInfo='Todavía no hay archivo jugadores.json en GitHub; los nombres están guardados solo en este dispositivo.';
+async function loadRoster(){ // jugadores.json publicado junto a la app (GitHub Pages)
+  try{ const r=await fetch('jugadores.json',{cache:'no-store'}); if(!r.ok)return;
+    const j=await r.json(); let n=0; for(const [k,v] of Object.entries(j)){ if(typeof v==='string'&&v.trim()&&names[k]!==v.trim()){ names[k]=v.trim(); n++; } }
+    store.set('traklive.names',names); rosterInfo='Se cargaron '+Object.keys(j).length+' nombres desde jugadores.json de GitHub.'; if(n)log('Nombres cargados de jugadores.json:',Object.keys(j).length); render();
+  }catch(e){} }
 let intervalS=store.get('traklive.int',3); $('#selInt').value=String(intervalS);
 let metric=store.get('traklive.metric','dist'); if(!METRICS.find(m=>m.k===metric&&!m.post))metric='dist';
 let split=store.get('traklive.split','block'), sortMode=store.get('traklive.sort','value');
@@ -517,8 +535,28 @@ async function addPod(all){
     log('Elegido:',dev.name||'(sin nombre)',dev.id);
     if(pods.has(dev.id)){log('Ese pod ya está en la lista');return}
     const p=new Pod(dev); pods.set(p.key,p); render(); keepAwake();
-    await p.connect();
+    await p.connect(); refreshSavedButton();
   }catch(e){ log('No se pudo agregar el pod:',(e&&e.name)||'',(e&&e.message)||e); render(); }
+}
+/* Pods ya autorizados: se conectan todos juntos sin pasar por el selector */
+async function savedDevices(){ try{ if(navigator.bluetooth&&navigator.bluetooth.getDevices) return await navigator.bluetooth.getDevices(); }catch(e){ log('No se pudieron leer los pods guardados:',e.message); } return null; }
+async function refreshSavedButton(){
+  const devs=await savedDevices(); const btn=$('#btnSaved');
+  if(!devs){ btn.hidden=true; return; }
+  const pending=devs.filter(d=>!pods.has(d.id)).length;
+  btn.hidden=devs.length===0; btn.disabled=pending===0;
+  btn.textContent=pending?'Conectar guardados ('+pending+')':'Guardados conectados';
+}
+async function connectSaved(){
+  const devs=await savedDevices(); if(!devs||!devs.length){ log('No hay pods guardados todavía'); return; }
+  const btn=$('#btnSaved'); btn.disabled=true; btn.textContent='Conectando…'; keepAwake();
+  let ok=0, fail=0; const todo=devs.filter(d=>!pods.has(d.id));
+  await Promise.all(todo.map((dev,i)=>new Promise(res=>setTimeout(async()=>{
+    const p=new Pod(dev); pods.set(p.key,p); render();
+    try{ await p.connect(); ok++; }catch(e){ fail++; log((dev.name||'Pod'),'guardado no responde (¿apagado o lejos?):',e.message); p.remove(); pods.delete(p.key); render(); }
+    res(); },i*400))));
+  log('Pods guardados: '+ok+' conectados'+(fail?', '+fail+' sin respuesta':''));
+  refreshSavedButton(); render();
 }
 function toCsv(rows){if(!rows.length)return'';const cols=Object.keys(rows[0]);return [cols.join(',')].concat(rows.map(r=>cols.map(c=>{const v=String(r[c]??'');return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(','))).join('\n');}
 async function exportCsv(){
@@ -537,6 +575,7 @@ async function keepAwake(){try{if('wakeLock' in navigator&&!wakeLock){wakeLock=a
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&pods.size)keepAwake()});
 
 $('#btnAdd').addEventListener('click',()=>addPod(false));
+$('#btnSaved').addEventListener('click',connectSaved);
 $('#btnAddAll').addEventListener('click',()=>addPod(true));
 $('#btnPlay').addEventListener('click',playPause);
 $('#btnStop').addEventListener('click',stopSession);
@@ -551,11 +590,17 @@ $('#selSort').addEventListener('change',e=>{sortMode=e.target.value; store.set('
 $('#btnSelAll').addEventListener('click',()=>{const all=[...pods.values()].every(p=>p.on); for(const p of pods.values())p.on=!all||false; if(!all)for(const p of pods.values())p.on=true; render();});
 $('#dName').addEventListener('change',()=>{const p=pods.get(openKey); if(p&&p.id){names[p.id]=$('#dName').value.trim();store.set('traklive.names',names);render();}});
 $('#dClose').addEventListener('click',closeDetail);
+function namesJson(){ const o={}; for(const p of pods.values()) if(p.id&&!String(p.id).startsWith('DEMO')&&!names[p.id]) o[p.id]=''; Object.assign(o,names); for(const k of Object.keys(o)) if(String(k).startsWith('DEMO'))delete o[k]; return JSON.stringify(o,null,2); }
+$('#btnNames').addEventListener('click',()=>{ $('#nText').value=namesJson(); $('#nSrc').textContent=rosterInfo; $('#nMsg').textContent=''; $('#ovN').hidden=false; });
+$('#nClose').addEventListener('click',()=>{$('#ovN').hidden=true});
+$('#ovN').addEventListener('click',e=>{if(e.target.id==='ovN')$('#ovN').hidden=true});
+$('#nCopy').addEventListener('click',async()=>{ const t=$('#nText'); try{ await navigator.clipboard.writeText(t.value); $('#nMsg').textContent='Copiado'; }catch(e){ t.focus(); t.select(); $('#nMsg').textContent='Seleccionado: copialo con el menú del sistema'; } });
+$('#nApply').addEventListener('click',()=>{ try{ const j=JSON.parse($('#nText').value); for(const [k,v] of Object.entries(j)){ if(typeof v==='string'){ if(v.trim())names[k]=v.trim(); else delete names[k]; } } store.set('traklive.names',names); $('#nMsg').textContent='Nombres aplicados en este dispositivo'; render(); }catch(e){ $('#nMsg').textContent='El texto no tiene el formato correcto'; } });
 $('#ov').addEventListener('click',e=>{if(e.target.id==='ov')closeDetail()});
 $('#dRemove').addEventListener('click',()=>{const p=pods.get(openKey); if(p){p.remove();pods.delete(openKey);} closeDetail(); render();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&openKey)closeDetail()});
 if(!navigator.bluetooth)$('#noBle').hidden=false;
 window.__traklive={parseSnapshots,expectedLen,ingest,stats};
-buildMetricSelect(); updateControls(); render(); renderBlocks();
+buildMetricSelect(); updateControls(); render(); renderBlocks(); refreshSavedButton(); loadRoster();
 })();
 </script>
