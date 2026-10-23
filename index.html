@@ -104,11 +104,15 @@ summary{cursor:pointer;font-weight:600}
   <div class="wrap row">
     <div class="brand">TrakLive</div>
     <div class="scroller">
-      <button class="primary" id="btnAdd">+ Agregar pod</button>
+      <button id="btnAdd">+ Agregar pod</button>
       <button id="btnAddAll">Buscar sin filtro</button>
       <span class="lbl">Cada</span>
       <select id="selInt" aria-label="Frecuencia de lectura"><option value="3">3 s</option><option value="5">5 s</option><option value="10">10 s</option></select>
-      <button id="btnBlock">Nuevo bloque</button>
+      <button class="primary" id="btnStart">▶ Iniciar</button>
+      <button id="btnPause" hidden>❚❚ Pausa</button>
+      <button id="btnStop" hidden>■ Finalizar</button>
+      <button id="btnBlock" hidden>Nuevo bloque</button>
+      <button id="btnOff" hidden>Apagar pods</button>
       <button id="btnSort" aria-pressed="false">Orden: llegada</button>
       <button id="btnCsv">Exportar CSV</button>
       <button id="btnDemo">Demo</button>
@@ -121,7 +125,7 @@ summary{cursor:pointer;font-weight:600}
   <div class="notice" id="noBle" hidden><b>Este navegador no tiene Bluetooth.</b> En iPhone o iPad abrí esta página con <b>Bluefy</b>. En Android o computadora usá Chrome. Podés probar con <b>Demo</b>.</div>
 
   <div class="summary">
-    <span class="bk" id="blkName">Bloque 1</span><span class="t" id="blkTime">00:00</span>
+    <span class="bk" id="blkName">Bloque 1</span><span class="t" id="blkTime">00:00</span><span class="chip" id="sessState">Sin iniciar</span>
     <span class="s" id="teamAvg"></span>
     <span class="s" id="gpsCount"></span>
   </div>
@@ -166,6 +170,7 @@ const CH_DATA='d973f3e1-b19e-11e2-9e96-0800200c9a68';
 const CH_CMD='d973f3e1-b19e-11e2-9e96-0800200c9a69';
 const CH_ID='d973f3e1-b19e-11e2-9e96-0800200c9a6a';
 const CMD_SNAP=new TextEncoder().encode('AAAAAAF00990000');
+const CMD_OFF=new TextEncoder().encode('AAAAAAX9hK70000');
 const HSR_KMH=18;
 const $=s=>document.querySelector(s);
 
@@ -199,6 +204,10 @@ const kmh=raw=>raw*0.0036;
 /* ---------- Estado ---------- */
 const pods=new Map(); let order=0;
 let block={n:1,start:Date.now()}; const closedBlocks=[]; const history=[];
+const sess={state:'idle',pausedAt:0,endAt:0}; // idle | running | paused | ended
+function elapsed(){ if(sess.state==='idle')return 0; const end=sess.state==='paused'?sess.pausedAt:sess.state==='ended'?sess.endAt:Date.now(); return Math.max(0,end-block.start); }
+function freezeAll(){ for(const p of pods.values()) if(p.snap) p.pz={session:p.snap.session,dist:p.snap.dist,impacts:p.snap.impacts,hsr:p.hsr}; }
+function resetBases(){ for(const p of pods.values()){ delete p.pz; if(p.snap)p.base={session:p.snap.session,dist:p.snap.dist,impacts:p.snap.impacts,hsr:p.hsr}; else p.base=null; } }
 let metric='dist', sortByValue=false, openKey=null, wakeLock=null;
 const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 const names=store.get('traklive.names',{});
@@ -302,9 +311,11 @@ function ingest(pod,buf,partial){
 }
 function stats(p){
   if(!p.snap||!p.base)return null;
-  const s=p.snap,b=p.base, min=Math.max((Date.now()-block.start)/60000,1/60), dist=Math.max(0,s.dist-b.dist);
-  let mm60=null; const sm=p.samples; if(sm.length>1){const last=sm[sm.length-1]; const a=sm.find(x=>last[0]-x[0]<=60000)||sm[0]; const dt=(last[0]-a[0])/60000; if(dt>0.15)mm60=(last[1]-a[1])/dt;}
-  return {dist,mpm:dist/min,mm60,hsr:Math.max(0,p.hsr-b.hsr),vmax:kmh(s.topRaw),imp:Math.max(0,s.impacts-b.impacts),acc:null,dec:null,pl:null,total:s.dist,sprint:s.sprint,session:s.session,valid:s.valid};
+  const frozen=(sess.state==='paused'||sess.state==='ended')&&p.pz&&p.pz.session===p.snap.session;
+  const s=frozen?Object.assign({},p.snap,{dist:p.pz.dist,impacts:p.pz.impacts}):p.snap, hsrNow=frozen?p.pz.hsr:p.hsr;
+  const b=p.base, ms=elapsed(), dist=sess.state==='idle'?0:Math.max(0,s.dist-b.dist);
+  let mm60=null; const sm=p.samples; if(sess.state==='running'&&sm.length>1){const last=sm[sm.length-1]; const a=sm.find(x=>last[0]-x[0]<=60000)||sm[0]; const dt=(last[0]-a[0])/60000; if(dt>0.15)mm60=(last[1]-a[1])/dt;}
+  return {dist,mpm:ms>5000?dist/(ms/60000):0,mm60,hsr:sess.state==='idle'?0:Math.max(0,hsrNow-b.hsr),vmax:kmh(s.topRaw),imp:sess.state==='idle'?0:Math.max(0,s.impacts-b.impacts),acc:null,dec:null,pl:null,total:s.dist,sprint:s.sprint,session:s.session,valid:s.valid};
 }
 function state(p){
   const now=Date.now(), age=(now-p.lastOk)/1000;
@@ -367,7 +378,15 @@ function renderBlocks(){const tb=$('#tblBlocks tbody'); tb.innerHTML=''; $('#noB
   for(const r of closedBlocks.slice().reverse()){const tr=document.createElement('tr');
     [r.jugador,'Bloque '+r.bloque,r.dur,fmt(r.dist),fmt(r.mpm),fmt(r.hsr),fmt(r.vmax,1),fmt(r.imp)].forEach(v=>{const td=document.createElement('td');td.textContent=v;tr.appendChild(td)}); tb.appendChild(tr);}}
 const mmss=ms=>{const s=Math.floor(ms/1000);return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')};
-setInterval(()=>{$('#blkTime').textContent=mmss(Date.now()-block.start); render();},1000);
+setInterval(()=>{$('#blkTime').textContent=mmss(elapsed()); render();},1000);
+function updateControls(){
+  const st=sess.state, show=(id,v)=>{$(id).hidden=!v};
+  $('#btnStart').textContent=st==='paused'?'▶ Reanudar':st==='ended'?'▶ Nueva sesión':'▶ Iniciar';
+  show('#btnStart',st!=='running'); show('#btnPause',st==='running'); show('#btnStop',st==='running'||st==='paused');
+  show('#btnBlock',st==='running'); show('#btnOff',st==='ended'&&pods.size>0);
+  const c=$('#sessState'); c.textContent={idle:'Sin iniciar',running:'En curso',paused:'En pausa',ended:'Finalizada'}[st]; c.className='chip '+(st==='running'?'ok':st==='paused'?'warn':'');
+  $('#blkName').textContent='Bloque '+block.n;
+}
 
 /* ---------- Acciones ---------- */
 async function addPod(all){
@@ -381,11 +400,35 @@ async function addPod(all){
     await p.connect();
   }catch(e){ log('No se pudo agregar el pod:',(e&&e.name)||'',(e&&e.message)||e); render(); }
 }
-function newBlock(){
-  const dur=mmss(Date.now()-block.start);
-  for(const p of pods.values()){const s=stats(p); if(s)closedBlocks.push({jugador:p.label(),bloque:block.n,dur,dist:s.dist,mpm:s.mpm,hsr:s.hsr,vmax:s.vmax,imp:s.imp});
-    if(p.snap)p.base={session:p.snap.session,dist:p.snap.dist,impacts:p.snap.impacts,hsr:p.hsr};}
-  block={n:block.n+1,start:Date.now()}; $('#blkName').textContent='Bloque '+block.n; renderBlocks(); render();
+function closeBlockRows(){
+  const dur=mmss(elapsed());
+  for(const p of pods.values()){const s=stats(p); if(s)closedBlocks.push({jugador:p.label(),bloque:block.n,dur,dist:s.dist,mpm:s.mpm,hsr:s.hsr,vmax:s.vmax,imp:s.imp});}
+}
+function newBlock(){ if(sess.state!=='running')return; closeBlockRows(); resetBases(); block={n:block.n+1,start:Date.now()}; renderBlocks(); updateControls(); render(); }
+function startSession(){
+  const now=Date.now();
+  if(sess.state==='paused'){
+    for(const p of pods.values()){ if(p.pz&&p.snap&&p.base&&p.pz.session===p.snap.session){ p.base.dist+=p.snap.dist-p.pz.dist; p.base.impacts+=p.snap.impacts-p.pz.impacts; p.base.hsr+=p.hsr-p.pz.hsr; } delete p.pz; }
+    block.start+=now-sess.pausedAt; log('Sesión reanudada');
+  } else {
+    if(sess.state==='ended')block={n:block.n+1,start:now}; else block={n:1,start:now};
+    resetBases(); log('Sesión iniciada');
+  }
+  sess.state='running'; keepAwake(); updateControls(); render();
+}
+function pauseSession(){ if(sess.state!=='running')return; sess.pausedAt=Date.now(); freezeAll(); sess.state='paused'; log('Sesión en pausa'); updateControls(); render(); }
+function stopSession(){
+  if(sess.state==='paused'){ sess.endAt=sess.pausedAt; } else { sess.endAt=Date.now(); freezeAll(); }
+  sess.state='ended'; closeBlockRows(); renderBlocks(); log('Sesión finalizada'); updateControls(); render();
+}
+let offArm=0;
+async function powerOff(){
+  const btn=$('#btnOff'), real=[...pods.values()].filter(p=>p instanceof Pod);
+  if(Date.now()-offArm>4000){ offArm=Date.now(); btn.textContent='Tocá de nuevo para apagar '+pods.size+' pods'; setTimeout(()=>{btn.textContent='Apagar pods'},4000); return; }
+  offArm=0; btn.textContent='Apagando…';
+  for(const p of real){ try{ p.reconnecting=true; if(p.cmd) await p.cmd.writeValue(CMD_OFF); log(p.label(),'apagado'); }catch(e){ log(p.label(),'no se pudo apagar:',e.message); } }
+  for(const [k,p] of pods){ p.remove(); pods.delete(k); }
+  btn.textContent='Apagar pods'; updateControls(); render();
 }
 function toCsv(rows){if(!rows.length)return'';const cols=Object.keys(rows[0]);return [cols.join(',')].concat(rows.map(r=>cols.map(c=>{const v=String(r[c]??'');return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(','))).join('\n');}
 async function exportCsv(){
@@ -406,6 +449,10 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 $('#btnAdd').addEventListener('click',()=>addPod(false));
 $('#btnAddAll').addEventListener('click',()=>addPod(true));
 $('#btnBlock').addEventListener('click',newBlock);
+$('#btnStart').addEventListener('click',startSession);
+$('#btnPause').addEventListener('click',pauseSession);
+$('#btnStop').addEventListener('click',stopSession);
+$('#btnOff').addEventListener('click',powerOff);
 $('#btnCsv').addEventListener('click',exportCsv);
 $('#btnDemo').addEventListener('click',demo);
 $('#btnSort').addEventListener('click',e=>{sortByValue=!sortByValue; e.currentTarget.textContent='Orden: '+(sortByValue?'mayor a menor':'llegada'); e.currentTarget.setAttribute('aria-pressed',String(sortByValue)); render();});
@@ -417,6 +464,6 @@ $('#dRemove').addEventListener('click',()=>{const p=pods.get(openKey); if(p){p.r
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&openKey)closeDetail()});
 if(!navigator.bluetooth)$('#noBle').hidden=false;
 window.__traklive={parseSnapshots,expectedLen};
-buildMetricBar(); render(); renderBlocks();
+buildMetricBar(); updateControls(); render(); renderBlocks();
 })();
 </script>
