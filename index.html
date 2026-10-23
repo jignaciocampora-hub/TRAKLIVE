@@ -152,15 +152,18 @@ class Pod{
   constructor(device){this.device=device;this.key=device.id;this.id=null;this.status='Conectando';this.snap=null;this.base=null;this.samples=[];this.buf=new Uint8Array(0);this.pending=null;this.lastOk=0;this.retry=0;this.removed=false;this.timer=null;
     device.addEventListener('gattserverdisconnected',()=>this.onDisc());}
   async connect(){
-    this.status='Conectando'; render();
-    const server=await this.device.gatt.connect();
-    const svc=await server.getPrimaryService(SVC);
+    this.status=this.lastOk?'Reconectando':'Conectando'; render();
+    const withTimeout=(p,ms)=>Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(new Error('tiempo de espera agotado')),ms))]);
+    const server=await withTimeout(this.device.gatt.connect(),12000);
+    const svc=await withTimeout(server.getPrimaryService(SVC),8000);
+    if(this.data&&this.handler)this.data.removeEventListener('characteristicvaluechanged',this.handler);
     this.data=await svc.getCharacteristic(CH_DATA);
     this.cmd=await svc.getCharacteristic(CH_CMD);
     if(!this.id){ try{const idc=await svc.getCharacteristic(CH_ID); const v=await idc.readValue(); this.id=new TextDecoder().decode(v).replace(/\0/g,'').trim();}catch(e){this.id=this.device.id} }
-    this.data.addEventListener('characteristicvaluechanged',e=>this.onPacket(new Uint8Array(e.target.value.buffer.slice(e.target.value.byteOffset,e.target.value.byteOffset+e.target.value.byteLength))));
-    await this.data.startNotifications();
-    this.status='Conectado'; this.retry=0; log(this.label(),'conectado, id',this.id); render();
+    this.handler=this.handler||(e=>{const v=e.target.value; this.onPacket(new Uint8Array(v.buffer.slice(v.byteOffset,v.byteOffset+v.byteLength)));});
+    this.data.addEventListener('characteristicvaluechanged',this.handler);
+    await withTimeout(this.data.startNotifications(),8000);
+    this.status='Conectado'; this.retry=0; this.reconnecting=false; log(this.label(),'conectado, id',this.id); render();
     this.schedule(0);
   }
   label(){return names[this.id]||this.device.name||'Pod'}
@@ -181,9 +184,12 @@ class Pod{
     if(this.buf.length>=expectedLen(this.buf)) this.finish();
   }
   finish(){ if(this.pending){clearTimeout(this.pending);this.pending=null} const buf=this.buf; this.buf=new Uint8Array(0); ingest(this,buf); }
-  onDisc(){ if(this.removed)return; this.status='Reconectando'; render(); clearTimeout(this.pending); this.pending=null;
-    const wait=Math.min(1000*2**this.retry,10000); this.retry++;
-    setTimeout(()=>{ if(this.removed)return; this.connect().catch(e=>{log(this.label(),'reconexión falló',e.message); this.onDisc();}); },wait); }
+  onDisc(){ if(this.removed||this.reconnecting)return; this.reconnecting=true; this.disc=(this.disc||0)+1;
+    this.status='Reconectando'; log(this.label(),'se desconectó, reintentando'); render(); clearTimeout(this.pending); this.pending=null; clearTimeout(this.timer);
+    const attempt=()=>{ if(this.removed)return;
+      try{this.device.gatt.disconnect()}catch(e){}
+      this.connect().catch(e=>{ log(this.label(),'reconexión falló:',e.message); const wait=Math.min(1000*2**this.retry,8000); this.retry++; this.status='Reconectando'; render(); setTimeout(attempt,wait); }); };
+    setTimeout(attempt,800); }
   remove(){this.removed=true;clearTimeout(this.timer);clearTimeout(this.pending);try{this.device.gatt.disconnect()}catch(e){}}
 }
 
@@ -215,7 +221,8 @@ function ingest(pod,buf){
   const cur=list.reduce((a,b)=>b.session>a.session?b:a);
   const now=Date.now();
   const prev=pod.snap;
-  pod.recording=!!prev&&prev.session===cur.session&&(cur.valid>prev.valid||cur.dist>prev.dist);
+  if(prev&&prev.session===cur.session&&(cur.valid>prev.valid||cur.dist>prev.dist))pod.lastChange=now;
+  pod.recording=!!pod.lastChange&&now-pod.lastChange<20000;
   pod.snap=cur; pod.lastOk=now;
   if(!pod.base||pod.base.session!==cur.session){
     // primer dato del bloque o sesión nueva: si la sesión cambió a mitad de bloque, cuenta desde 0
@@ -241,7 +248,8 @@ function chip(p){const age=(Date.now()-p.lastOk)/1000;
   if(p.status==='Conectando')return['Conectando','warn'];
   if(!p.lastOk)return['Esperando datos','warn'];
   if(age>intervalS*3+5)return['Sin datos '+Math.round(age)+' s','bad'];
-  return[p.recording?'Grabando':'Conectado','ok'];}
+  const rec=p.lastChange&&Date.now()-p.lastChange<20000;
+  return[rec?'Grabando':'Conectado','ok'];}
 function render(onlyKey){
   const grid=$('#grid'); $('#empty').hidden=pods.size>0;
   for(const [k,p] of pods){
@@ -259,7 +267,7 @@ function render(onlyKey){
     const set=(m,h)=>el.querySelector('[data-m="'+m+'"]').innerHTML=h;
     set('mpm',st?fmt(st.mpm):'–'); set('mm60',st?fmt(st.mm60):'–'); set('spr',st?fmt(st.sprint)+' <small>m</small>':'–');
     set('vmax',st?fmt(st.vmax,1)+' <small>km/h</small>':'–'); set('imp',st?fmt(st.impacts):'–'); set('tot',st?fmt(st.total)+' <small>m</small>':'–');
-    el.querySelector('.fi').textContent=(p.id?p.id.slice(-8):'')+(st?' · sesión '+st.session:'')+(p.lastOk?' · hace '+Math.round((Date.now()-p.lastOk)/1000)+' s':'');
+    el.querySelector('.fi').textContent=(p.id?p.id.slice(-8):'')+(st?' · sesión '+st.session:'')+(p.lastOk?' · hace '+Math.round((Date.now()-p.lastOk)/1000)+' s':'')+(p.disc?' · cortes: '+p.disc:'');
   }
 }
 function renderBlocks(){const tb=$('#tblBlocks tbody'); tb.innerHTML=''; $('#noBlocks').hidden=closedBlocks.length>0;
