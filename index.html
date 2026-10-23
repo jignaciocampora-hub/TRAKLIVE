@@ -270,36 +270,59 @@ class Pod{
     this.handler=this.handler||(e=>{const v=e.target.value; this.onPacket(new Uint8Array(v.buffer.slice(v.byteOffset,v.byteOffset+v.byteLength)));});
     this.data.addEventListener('characteristicvaluechanged',this.handler);
     await to(this.data.startNotifications(),8000);
-    this.status='Conectado'; this.retry=0; this.reconnecting=false; log(this.label(),'conectado, id',this.id); render();
-    this.schedule(200);
+    this.status='Conectado'; this.retry=0; this.reconnecting=false; this.ready=true; this.lastPoll=0; log(this.label(),'conectado, id',this.id); render();
   }
-  schedule(ms){clearTimeout(this.timer); if(!this.removed) this.timer=setTimeout(()=>this.poll(),ms);}
-  async poll(){
-    if(this.removed||!this.device.gatt.connected)return;
-    if(!this.pending){
-      this.buf=new Uint8Array(0); this.t0=Date.now(); this.armTimeout(3000);
-      try{ if(this.cmd.writeValueWithoutResponse) await this.cmd.writeValueWithoutResponse(CMD_SNAP); else await this.cmd.writeValue(CMD_SNAP); }
-      catch(e){ try{await this.cmd.writeValue(CMD_SNAP)}catch(e2){log(this.label(),'error al pedir datos',e2.message)} }
-    }
-    this.schedule(intervalS*1000);
+  buildCmd(){
+    if(this.snap&&this.narrow!==false&&narrowGlobal!==false){ this.narrowReq=true; return new TextEncoder().encode('AAAAAAF0099'+Math.max(0,this.snap.session-1).toString(16).toUpperCase().padStart(4,'0')); }
+    this.narrowReq=false; return CMD_SNAP;
   }
-  armTimeout(ms){clearTimeout(this.pending); this.pending=setTimeout(()=>{ this.pending=null; if(this.buf.length>=36){log(this.label(),'respuesta incompleta',this.buf.length,'de',expectedLen(this.buf),'bytes'); this.finish(true);} },ms);}
+  async request(){ // la llama la cola: un pod por vez
+    this.lastPoll=Date.now(); this.buf=new Uint8Array(0); this.t0=Date.now();
+    const cmd=this.buildCmd(); this.armTimeout(this.narrowReq&&this.narrow!==true?2000:3500);
+    try{ if(this.cmd.writeValueWithoutResponse) await this.cmd.writeValueWithoutResponse(cmd); else await this.cmd.writeValue(cmd); }
+    catch(e){ try{await this.cmd.writeValue(cmd)}catch(e2){log(this.label(),'error al pedir datos',e2.message); this.done();} }
+  }
+  narrowMiss(why){
+    this.narrowFail=(this.narrowFail||0)+1; this.lastPoll=0; // se vuelve a consultar enseguida, con la orden completa
+    if(this.narrow!==true){ this.narrow=false; log(this.label(),'la consulta corta no funcionó ('+why+'); uso la consulta completa');
+      if(narrowGlobal!==true){ narrowGlobal=false; } }
+  }
+  armTimeout(ms){clearTimeout(this.pending); this.pending=setTimeout(()=>{ this.pending=null;
+    if(this.buf.length>=36){log(this.label(),'respuesta incompleta',this.buf.length,'de',expectedLen(this.buf),'bytes'); this.finish(true);}
+    else { if(this.narrowReq)this.narrowMiss('sin respuesta'); else log(this.label(),'sin respuesta del pod'); this.done(); } },ms);}
   onPacket(p){
+    if(active!==this&&!this.pending)return; // paquete tardío de una consulta anterior
     const first=this.buf.length===0;
     const nb=new Uint8Array(this.buf.length+p.length); nb.set(this.buf); nb.set(p,this.buf.length); this.buf=nb;
     const exp=expectedLen(this.buf);
-    if(first&&isFinite(exp)) this.armTimeout(Math.min(20000,2000+exp/20*30));
+    if(first&&isFinite(exp)) this.armTimeout(Math.min(40000,2500+exp/20*40));
     if(this.buf.length>=exp) this.finish(false);
   }
   finish(partial){ if(this.pending){clearTimeout(this.pending);this.pending=null} const buf=this.buf; this.buf=new Uint8Array(0);
-    this.respMs=Date.now()-this.t0; this.respN=(buf[2]<<8)|buf[3]; ingest(this,buf,partial); }
-  onDisc(){ if(this.removed||this.reconnecting)return; this.reconnecting=true; this.disc++;
+    this.respMs=Date.now()-this.t0; this.respN=(buf[2]<<8)|buf[3];
+    if(!partial&&this.narrowReq&&this.snap){
+      const list=parseSnapshots(buf);
+      if(!list.some(r=>r.session>=this.snap.session)){ this.narrowMiss('no trajo la sesión actual'); this.done(); return; }
+      if(this.narrow!==true){ this.narrow=true; narrowGlobal=true; log(this.label(),'consulta corta OK:',list.length,'registros en',this.respMs,'ms'); }
+    } else if(!partial&&!this.narrowReq&&this.respN>3){ log(this.label(),'consulta completa:',this.respN,'sesiones en',this.respMs,'ms'); }
+    ingest(this,buf,partial); this.done(); }
+  done(){ if(active===this)active=null; }
+  onDisc(){ if(this.removed||this.reconnecting)return; this.reconnecting=true; this.ready=false; this.done(); this.disc++;
     this.status='Reconectando'; log(this.label(),'se desconectó, reintentando'); render(); clearTimeout(this.pending); this.pending=null; clearTimeout(this.timer);
     const attempt=()=>{ if(this.removed)return; try{this.device.gatt.disconnect()}catch(e){}
       this.connect().catch(e=>{ log(this.label(),'reconexión falló:',e.message); const w=Math.min(1000*2**this.retry,8000); this.retry++; render(); setTimeout(attempt,w); }); };
     setTimeout(attempt,800); }
-  remove(){this.removed=true;clearTimeout(this.timer);clearTimeout(this.pending);try{this.device.gatt.disconnect()}catch(e){}}
+  remove(){this.removed=true;this.ready=false;this.done();clearTimeout(this.timer);clearTimeout(this.pending);try{this.device.gatt.disconnect()}catch(e){}}
 }
+/* Cola de lecturas: el Bluetooth del teléfono atiende un pod por vez */
+let active=null, narrowGlobal=null; // null = sin probar todavía
+setInterval(()=>{
+  if(active)return;
+  const now=Date.now(); let pick=null;
+  for(const p of pods.values()){ if(!(p instanceof Pod)||!p.ready||p.removed||p.reconnecting||!p.device.gatt.connected)continue;
+    if(now-p.lastPoll<intervalS*1000)continue; if(!pick||p.lastPoll<pick.lastPoll)pick=p; }
+  if(pick){ active=pick; pick.request(); }
+},120);
 
 /* ---------- Pod simulado (mismo formato de bytes que el real) ---------- */
 const POS=['Pilar','Hooker','Pilar','2ª línea','2ª línea','Ala','Ala','Octavo','Medio scrum','Apertura','Wing','Centro','Centro','Wing','Fullback','Suplente','Suplente'];
@@ -369,7 +392,7 @@ function state(p){
   const now=Date.now(), age=(now-p.lastOk)/1000;
   if(p.status==='Reconectando')return['Reconectando','warn'];
   if(p.status==='Conectando'||!p.lastOk)return['Conectando','warn'];
-  if(age>intervalS*3+6)return['Sin datos '+Math.round(age)+' s','bad'];
+  if(age>Math.max(intervalS*3+6,pods.size*2+12))return['Sin datos '+Math.round(age)+' s','bad'];
   if(p.lastValid&&now-p.lastValid<15000)return['GPS OK','ok'];
   return['Esperando GPS','warn'];
 }
@@ -426,7 +449,7 @@ function fillDetail(){const p=pods.get(openKey); if(!p){closeDetail();return}
   const s=stats(p,'block'), ss=stats(p,'session'), [txt,cls]=state(p); const c=$('#dChip'); c.textContent=txt; c.className='chip '+cls;
   const items=[['Dist. bloque',s&&fmt(s.dist),'m'],['Dist. sesión',ss&&fmt(ss.dist),'m'],['Mts x min bloque',s&&fmt(s.mpm),'m/min'],['m/min 60 s',s&&fmt(s.mm60),''],['HSR +18 bloque (est.)',s&&fmt(s.hsr),'m'],['Vel. máx sesión',s&&fmt(s.vmax,1),'km/h'],['Impactos bloque',s&&fmt(s.imp),''],['Sprint (pod)',s&&fmt(s.sprint),'m'],['Acc +4',null,'post'],['Dec −4',null,'post'],['Player Load',null,'post']];
   $('#dMets').innerHTML=items.map(([l,v,u])=>u==='post'?'<div class="met na"><div class="l">'+l+'</div><div class="v">post-sesión</div></div>':'<div class="met"><div class="l">'+l+'</div><div class="v">'+(v||'–')+(u?' <small>'+u+'</small>':'')+'</div></div>').join('');
-  $('#dInfo').textContent=(p.id||'')+(s?' · sesión del pod '+s.session:'')+(p.respN!=null?' · '+p.respN+' sesiones guardadas, '+p.respMs+' ms':'')+(p.disc?' · cortes: '+p.disc:'')+(p.bad?' · lecturas descartadas: '+p.bad:'');
+  $('#dInfo').textContent=(p.id||'')+(s?' · sesión del pod '+s.session:'')+(p.respN!=null?' · última respuesta: '+p.respN+' registros, '+p.respMs+' ms'+(p.narrow===true?' (consulta corta)':p.narrow===false?' (consulta completa)':''):'')+(p.disc?' · cortes: '+p.disc:'')+(p.bad?' · lecturas descartadas: '+p.bad:'');
 }
 function renderBlocks(){const tb=$('#tblBlocks tbody'); tb.innerHTML=''; $('#noBlocks').hidden=closedBlocks.length>0;
   for(const r of closedBlocks.slice().reverse()){const tr=document.createElement('tr');
