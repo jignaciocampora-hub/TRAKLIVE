@@ -3,11 +3,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
 <style>
-/* Layout: cabecera con acciones de pods + filtros (métrica, split, orden); lista de jugadores con barra proporcional; barra inferior fija con reloj y controles de sesión */
+/* Layout: cabecera con acciones + filtros; lista de jugadores (o cuadros FC tipo pizarra de banco); barra inferior fija con reloj y controles de sesión */
 :root{
   --bg:#F2F5F1; --surface:#FFFFFF; --line:#D5DDD6; --fg:#0F1A14; --muted:#5B6B61;
   --accent:#0A7A52; --accent-fg:#FFFFFF; --ok:#13804F; --warn:#B26A00; --bad:#B42318; --chip:#E7EEE9;
   --track:#E6ECE7; --fill:#A9DEC6; --lead:#5FC79C; --dock:#0F1A14; --dock-fg:#F2F5F1;
+  --gz1:#C9D6CE; --gz2:#9CCFB6; --gz3:#4FB287; --gz4:#E0A100; --gz5:#D2452F;
+  --hz0:#7C8A83; --hz1:#2F7FC1; --hz2:#2E9A5B; --hz3:#D98A00; --hz4:#C8323B; --hzfg:#FFFFFF;
   --f-num:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
   --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
   --f-mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
@@ -15,11 +17,15 @@
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#0B110F; --surface:#141D19; --line:#25322B; --fg:#E7EFEA; --muted:#93A69A;
   --accent:#3FD49B; --accent-fg:#06110C; --ok:#4ADE96; --warn:#F5B547; --bad:#FF7A6B; --chip:#1E2A24;
-  --track:#1A2520; --fill:#1E5C44; --lead:#2E8F67; --dock:#060A08; --dock-fg:#E7EFEA; color-scheme:dark}}
+  --track:#1A2520; --fill:#1E5C44; --lead:#2E8F67; --dock:#060A08; --dock-fg:#E7EFEA;
+  --gz1:#33433B; --gz2:#2D6B52; --gz3:#3AA57A; --gz4:#D19A10; --gz5:#E05A44;
+  --hz0:#56635C; --hz1:#2A6FA8; --hz2:#25804C; --hz3:#B87400; --hz4:#B02A33; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0B110F; --surface:#141D19; --line:#25322B; --fg:#E7EFEA; --muted:#93A69A;
   --accent:#3FD49B; --accent-fg:#06110C; --ok:#4ADE96; --warn:#F5B547; --bad:#FF7A6B; --chip:#1E2A24;
-  --track:#1A2520; --fill:#1E5C44; --lead:#2E8F67; --dock:#060A08; --dock-fg:#E7EFEA; color-scheme:dark}
+  --track:#1A2520; --fill:#1E5C44; --lead:#2E8F67; --dock:#060A08; --dock-fg:#E7EFEA;
+  --gz1:#33433B; --gz2:#2D6B52; --gz3:#3AA57A; --gz4:#D19A10; --gz5:#E05A44;
+  --hz0:#56635C; --hz1:#2A6FA8; --hz2:#25804C; --hz3:#B87400; --hz4:#B02A33; color-scheme:dark}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.35;padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
@@ -31,44 +37,66 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var
 .brand{font-family:var(--f-num);font-weight:700;font-size:24px;letter-spacing:.02em;white-space:nowrap}
 .scroller{display:flex;gap:8px;align-items:center;overflow-x:auto;scrollbar-width:none;min-width:0;flex:1;padding-block:2px}
 .scroller::-webkit-scrollbar{display:none}
-button,select{font:inherit;font-weight:600;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:7px 12px;min-height:40px;cursor:pointer;white-space:nowrap;flex:none}
+button,select,input{font:inherit}
+button,select{font-weight:600;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:7px 12px;min-height:40px;cursor:pointer;white-space:nowrap;flex:none}
 button.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
 button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+button:disabled{opacity:.5;cursor:default}
 .lbl{font-size:12px;color:var(--muted);white-space:nowrap}
-.filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding-block:8px;border-top:1px solid var(--line)}
-@media (min-width:700px){.filters{grid-template-columns:2fr 1.4fr 1fr 1fr}}
+.filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px 8px;padding-block:8px;border-top:1px solid var(--line)}
+.filters label:first-child{grid-column:span 2}
+@media (max-width:599px){.filters select,.filters button{font-size:14px;min-height:36px;padding:5px 8px} .filters select{padding-right:22px;background-position:calc(100% - 13px) 50%,calc(100% - 8px) 50%}}
+@media (min-width:760px){.filters{grid-template-columns:2.2fr 1.3fr 1.1fr 1.1fr 1fr} .filters label:first-child{grid-column:auto} .filters .selc{order:5}}
 .filters label{display:grid;gap:3px;min-width:0}
 .filters select,.filters button{width:100%;min-width:0}
 .filters select{font-size:16px;appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 16px) 50%,calc(100% - 11px) 50%;background-size:5px 5px;background-repeat:no-repeat;padding-right:28px}
-main{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;padding-block:10px 24px}
+main{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;padding-block:10px 24px}
 main>*{min-width:0}
 .notice{border:1px solid var(--line);border-left:4px solid var(--warn);background:var(--surface);border-radius:10px;padding:10px 12px;max-width:75ch}
 .avg{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 12px}
 .avg .a{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
-.avg .a b{font-family:var(--f-num);font-size:20px;letter-spacing:0;color:var(--fg);margin-left:4px}
+.avg .a b{font-family:var(--f-num);font-size:20px;letter-spacing:0;color:var(--fg);margin-left:4px;text-transform:none}
 .avg .g{font-size:13px;color:var(--muted)}
 .avg .g b{color:var(--fg)}
-.mnote{font-size:12px;color:var(--muted);margin:0;max-width:80ch}
-.list{display:grid;gap:6px}
-.pl{display:grid;grid-template-columns:minmax(0,1fr) 44px;gap:8px;align-items:stretch;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:6px 6px 6px 10px}
+.mnote{font-size:12px;color:var(--muted);margin:0;max-width:85ch}
+.legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+/* lista */
+.list{display:grid;gap:5px}
+.pl{display:grid;grid-template-columns:minmax(0,1fr) 40px;gap:6px;align-items:stretch;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:4px 4px 4px 8px}
 .pl.off{opacity:.45}
 .pl.bad{border-color:var(--bad)}
-.pl .who{display:flex;align-items:center;gap:7px;min-width:0;background:none;border:0;padding:0;min-height:0;font-weight:600;font-size:14px;text-align:left;color:inherit}
+.pl .who{display:flex;align-items:center;gap:7px;min-width:0;background:none;border:0;padding:0;min-height:0;font-weight:600;font-size:13px;text-align:left;color:inherit}
 .pl .who .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .pl .who .id{color:var(--muted);font-weight:500;font-size:12px;white-space:nowrap}
+.pl .who .hrb{font-family:var(--f-num);font-size:15px;font-weight:600;white-space:nowrap;padding:0 6px;border-radius:5px;color:var(--hzfg)}
 .pl .who .st{margin-left:auto;font-size:12px;font-weight:500;white-space:nowrap;color:var(--muted)}
 .pl .who .st.warn{color:var(--warn)} .pl .who .st.bad{color:var(--bad)}
 .dot{width:10px;height:10px;border-radius:50%;flex:none;background:var(--muted)}
 .dot.ok{background:var(--ok)} .dot.warn{background:var(--warn)} .dot.bad{background:var(--bad)}
-.main{display:grid;gap:4px;min-width:0}
-.bar{position:relative;height:40px;background:var(--track);border-radius:7px;overflow:hidden}
+.main{display:grid;gap:2px;min-width:0}
+.bar{position:relative;height:34px;background:var(--track);border-radius:7px;overflow:hidden}
 .bar i{position:absolute;inset:0 auto 0 0;width:0;background:var(--fill);transition:width .5s}
+.bar .seg{position:absolute;inset:0 auto 0 0;display:flex;height:100%}
+.bar .seg span{display:block;height:100%;transition:width .5s}
 .pl.lead .bar i{background:var(--lead)}
-.bar .v{position:relative;font-family:var(--f-num);font-weight:700;font-size:30px;line-height:40px;padding-left:10px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.pl.t-ok .bar i{background:var(--gz3)} .pl.t-over .bar i{background:var(--gz5)} .pl.t-near .bar i{background:var(--gz4)}
+.bar .v{position:relative;font-family:var(--f-num);font-weight:700;font-size:26px;line-height:34px;padding-left:10px;font-variant-numeric:tabular-nums;white-space:nowrap}
 .bar .v small{font-size:15px;font-weight:600;margin-left:3px;color:var(--muted)}
-.bar .x{position:absolute;right:8px;top:0;line-height:40px;font-size:12px;color:var(--muted);white-space:nowrap}
+.bar .x{position:absolute;right:8px;top:0;line-height:34px;font-size:12px;color:var(--muted);white-space:nowrap}
 .sel{border-radius:8px;min-height:0;height:auto;padding:0;font-size:22px;display:grid;place-items:center;background:var(--chip);border-color:transparent}
 .sel[aria-pressed="false"]{background:transparent;border:1px dashed var(--line);color:var(--muted)}
+/* cuadros FC */
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+@media (max-width:599px){.tiles{grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}}
+.tile{border:0;border-radius:8px;padding:8px 10px;min-height:0;display:grid;gap:2px;text-align:left;color:var(--hzfg);background:var(--hz0);white-space:normal}
+.tile .nm{font-family:var(--f-num);font-weight:600;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:uppercase;letter-spacing:.02em}
+.tile .pc{font-family:var(--f-num);font-weight:700;font-size:clamp(30px,8vw,46px);line-height:1;font-variant-numeric:tabular-nums}
+.tile .pc small{font-size:.5em}
+.tile .bpm{font-family:var(--f-num);font-size:16px;font-weight:600;display:flex;justify-content:space-between;gap:6px;white-space:nowrap}
+.tile .bpm span:last-child{opacity:.85}
+.tile.nohr{background:var(--track);color:var(--muted)}
+.hz0{background:var(--hz0)} .hz1{background:var(--hz1)} .hz2{background:var(--hz2)} .hz3{background:var(--hz3)} .hz4{background:var(--hz4)}
 .empty{background:var(--surface);border:1px dashed var(--line);border-radius:14px;padding:18px;display:grid;gap:8px;max-width:75ch}
 .empty h3{margin:0;font-family:var(--f-num);font-size:22px}
 .empty ol{margin:0;padding-left:20px;display:grid;gap:4px}
@@ -86,36 +114,33 @@ summary{cursor:pointer;font-weight:600}
 .dock{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--dock);color:var(--dock-fg);padding-top:10px;padding-bottom:calc(10px + env(safe-area-inset-bottom,0px))}
 .dock .in{display:flex;align-items:center;gap:10px;justify-content:space-between}
 .clock{display:grid;line-height:1;min-width:0}
-.clock .t{font-family:var(--f-num);font-weight:700;font-size:clamp(38px,11vw,54px);font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.clock .t{font-family:var(--f-num);font-weight:700;font-size:clamp(34px,10vw,54px);font-variant-numeric:tabular-nums;letter-spacing:.01em}
 .clock .s{font-size:11px;letter-spacing:.1em;text-transform:uppercase;opacity:.75;margin-top:4px;white-space:nowrap}
 .dock .btns{display:flex;gap:8px;align-items:center}
 .dock button{background:transparent;color:var(--dock-fg);border:1px solid rgba(255,255,255,.28)}
 .dock .play{width:64px;height:64px;border-radius:50%;font-size:26px;padding:0;background:var(--accent);color:var(--accent-fg);border:0}
 .dock .round{width:48px;height:48px;border-radius:50%;padding:0;font-size:18px}
 .dock .blk{min-height:44px;font-size:14px}
-/* panel de detalle */
+/* paneles */
 .ov{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center}
 @media (min-width:700px){.ov{align-items:center}}
-.sheet{background:var(--surface);color:var(--fg);width:100%;max-width:520px;border-radius:16px 16px 0 0;padding:16px max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:grid;gap:12px;max-height:88vh;overflow:auto}
+.sheet{background:var(--surface);color:var(--fg);width:100%;max-width:540px;border-radius:16px 16px 0 0;padding:16px max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:grid;gap:12px;max-height:88vh;overflow:auto}
 @media (min-width:700px){.sheet{border-radius:16px}}
+.sheet h2{margin:0;font-family:var(--f-num);font-size:24px}
 .sheet .hd{display:flex;gap:8px;align-items:center}
-.sheet input{flex:1;min-width:0;width:0;font:inherit;font-family:var(--f-num);font-size:26px;font-weight:600;border:0;border-bottom:1px dashed var(--line);background:transparent;color:var(--fg);padding:2px 0}
+.sheet .hd input{flex:1;min-width:0;width:0;font-family:var(--f-num);font-size:26px;font-weight:600;border:0;border-bottom:1px dashed var(--line);background:transparent;color:var(--fg);padding:2px 0}
 .chip{font-size:12px;font-weight:600;border-radius:999px;padding:3px 9px;background:var(--chip);white-space:nowrap}
 .chip.ok{color:var(--ok)} .chip.warn{color:var(--warn)} .chip.bad{color:var(--bad)}
 .mets{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 14px}
 .met .l{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
-.met .v{font-family:var(--f-num);font-size:28px;font-weight:600;font-variant-numeric:tabular-nums}
+.met .v{font-family:var(--f-num);font-size:26px;font-weight:600;font-variant-numeric:tabular-nums}
 .met .v small{font-size:14px;color:var(--muted);font-weight:500}
 .met.na .v{color:var(--muted);font-size:16px;font-family:var(--f-body);font-weight:500}
+.form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.form label{display:grid;gap:3px;font-size:12px;color:var(--muted);min-width:0}
+.form input,.form select{width:100%;min-width:0;font-size:16px;padding:8px 10px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
+.form .full{grid-column:1/-1}
 .sheet .ft{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--muted)}
-.avg .a b{text-transform:none}
-.list{gap:5px}
-.pl{padding:4px 4px 4px 8px;gap:6px;grid-template-columns:minmax(0,1fr) 40px}
-.main{gap:2px}
-.bar{height:34px}
-.bar .v{font-size:26px;line-height:34px}
-.bar .x{line-height:34px}
-.pl .who{font-size:13px}
 @media (max-width:599px){
   .bar{height:30px} .bar .v{font-size:23px;line-height:30px} .bar .x{line-height:30px;font-size:11px}
   .pl{grid-template-columns:minmax(0,1fr) 36px}
@@ -125,9 +150,8 @@ summary{cursor:pointer;font-weight:600}
   .dock .play{width:56px;height:56px;font-size:22px}
   .dock .round{width:44px;height:44px}
   .dock .blk{padding:6px 10px;font-size:13px}
-  .mnote{display:none}
 }
-@media (prefers-reduced-motion:reduce){.bar i{transition:none}}
+@media (prefers-reduced-motion:reduce){.bar i,.bar .seg span{transition:none}}
 </style>
 
 <header>
@@ -135,21 +159,24 @@ summary{cursor:pointer;font-weight:600}
     <div class="brand">TrakLive</div>
     <div class="scroller">
       <button class="primary" id="btnSaved" hidden>Conectar guardados</button>
-      <button class="primary" id="btnAdd">+ Agregar pod</button>
+      <button class="primary" id="btnAdd">+ Pod GPS</button>
+      <button id="btnAddHr">+ Banda FC</button>
       <button id="btnAddAll">Buscar sin filtro</button>
       <span class="lbl">Cada</span>
-      <select id="selInt" aria-label="Frecuencia de lectura"><option value="3">3 s</option><option value="5">5 s</option><option value="10">10 s</option></select>
-      <button id="btnCsv">Exportar CSV</button>
+      <select id="selInt" aria-label="Frecuencia de lectura de los pods"><option value="3">3 s</option><option value="5">5 s</option><option value="10">10 s</option></select>
+      <button id="btnCfg">Ajustes</button>
       <button id="btnNames">Nombres</button>
+      <button id="btnCsv">Exportar CSV</button>
       <button id="btnOff" hidden>Apagar pods</button>
       <button id="btnDemo">Demo</button>
     </div>
   </div>
   <div class="wrap filters">
     <label><span class="lbl">Métrica</span><select id="selMetric"></select></label>
+    <label class="selc"><span class="lbl">Selección</span><button id="btnSelAll" type="button">Todos</button></label>
     <label><span class="lbl">Split</span><select id="selSplit"><option value="block">Bloque actual</option><option value="session">Sesión completa</option></select></label>
+    <label><span class="lbl">Vista</span><select id="selView"><option value="list">Lista</option><option value="hr">Cuadros FC</option></select></label>
     <label><span class="lbl">Orden</span><select id="selSort"><option value="value">Mayor a menor</option><option value="arrival">Llegada</option><option value="name">Nombre</option></select></label>
-    <label><span class="lbl">Selección</span><button id="btnSelAll" type="button">Todos</button></label>
   </div>
 </header>
 
@@ -157,27 +184,28 @@ summary{cursor:pointer;font-weight:600}
   <div class="notice" id="noBle" hidden><b>Este navegador no tiene Bluetooth.</b> En iPhone o iPad abrí esta página con <b>Bluefy</b>. En Android o computadora usá Chrome. Podés probar con <b>Demo</b>.</div>
   <div class="avg"><span class="a" id="avg">Promedio <b>–</b></span><span class="g" id="gpsCount"></span></div>
   <p class="mnote" id="mnote"></p>
+  <div class="legend" id="legend" hidden></div>
   <div class="list" id="list"></div>
+  <div class="tiles" id="tiles" hidden></div>
   <div class="empty" id="empty">
-    <h3>Sin pods conectados</h3>
+    <h3>Sin jugadores conectados</h3>
     <ol>
-      <li>Borrá <b>Settings.dat</b> del pod y prendelo una sola vez.</li>
-      <li>Dejalo afuera unos minutos para que tome GPS.</li>
-      <li>Tocá <b>+ Agregar pod</b> y elegí <b>PlayTEK</b> o <b>RON-POD</b>. Repetí con cada jugador.</li>
-      <li>Tocá el nombre de la fila para escribir el del jugador.</li>
+      <li><b>Pods GPS:</b> borrá <b>Settings.dat</b>, prendé el pod una sola vez, dejalo tomar GPS y tocá <b>+ Pod GPS</b>.</li>
+      <li><b>Bandas de FC:</b> poné la banda (mojada) al jugador y tocá <b>+ Banda FC</b>.</li>
+      <li>Tocá la fila para ponerle nombre. Si el pod y la banda tienen el mismo nombre, se muestran en la misma fila.</li>
     </ol>
-    <span class="note"><b>Demo</b> carga 17 jugadores simulados para ver la pantalla completa.</span>
+    <span class="note"><b>Demo</b> carga 17 jugadores simulados con pod y banda.</span>
   </div>
 
   <section>
     <h2>Bloques</h2>
-    <div class="tablebox"><table id="tblBlocks"><thead><tr><th>Jugador</th><th>Bloque</th><th>Duración</th><th>Dist. m</th><th>m/min</th><th>HSR m*</th><th>Vel. máx</th><th>Impactos</th></tr></thead><tbody></tbody></table></div>
+    <div class="tablebox"><table id="tblBlocks"><thead><tr><th>Jugador</th><th>Bloque</th><th>Duración</th><th>Dist. m</th><th>m/min</th><th>HSR m*</th><th>Esf. HSR</th><th>Vel. máx</th><th>FC media</th><th>Z. roja</th></tr></thead><tbody></tbody></table></div>
     <p class="note" id="noBlocks">Al tocar <b>+ Bloque</b> (abajo, con la sesión en curso) se cierra el bloque actual y queda registrado acá.</p>
   </section>
 
   <details><summary>Registro técnico</summary><pre id="log"></pre></details>
 
-  <p class="note">* HSR estimado por la app a partir de la distancia entre lecturas (velocidad media ≥ 18 km/h en cada intervalo); puede quedarse corto en esfuerzos de pocos segundos. Vel. máx. es la de toda la sesión del pod. Impactos usa el umbral propio del pod. Acc, Dec y Player Load no llegan por Bluetooth: se calculan después con los archivos del pod por USB.</p>
+  <p class="note">* HSR, zonas, esfuerzos, velocidad actual y picos los estima la app con la distancia que suma el pod entre lecturas (cada pocos segundos); pueden quedarse cortos en esfuerzos muy breves. Vel. máx. es la de toda la sesión del pod. Acc, Dec y Player Load no llegan por Bluetooth: se calculan después con los archivos del pod por USB.</p>
 </main>
 
 <div class="dock"><div class="wrap in">
@@ -189,11 +217,28 @@ summary{cursor:pointer;font-weight:600}
   </div>
 </div></div>
 
+<div class="ov" id="ovCfg" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-label="Ajustes">
+    <h2>Ajustes</h2>
+    <div class="form">
+      <label class="full">Cortes de zonas de velocidad (km/h)</label>
+      <label>Z1 → Z2 (caminar → trotar)<input id="cZ1" type="number" inputmode="decimal" step="0.5"></label>
+      <label>Z2 → Z3 (trotar → correr)<input id="cZ2" type="number" inputmode="decimal" step="0.5"></label>
+      <label>Z3 → Z4 (correr → HSR)<input id="cZ3" type="number" inputmode="decimal" step="0.5"></label>
+      <label>Z4 → Z5 (HSR → sprint)<input id="cZ4" type="number" inputmode="decimal" step="0.5"></label>
+      <label>Objetivo de distancia por sesión (m)<input id="cTgt" type="number" inputmode="numeric" step="100"></label>
+      <label>FC máxima por defecto (lpm)<input id="cHr" type="number" inputmode="numeric" step="1"></label>
+    </div>
+    <p class="note">El objetivo y la FC máxima se pueden ajustar por jugador desde su detalle. Los cortes de zonas aplican desde que los guardás.</p>
+    <div class="ft"><span id="cMsg"></span><span style="display:flex;gap:8px"><button id="cCancel" type="button">Cancelar</button><button class="primary" id="cSave" type="button">Guardar</button></span></div>
+  </div>
+</div>
+
 <div class="ov" id="ovN" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-label="Nombres de los jugadores">
-    <h2 style="margin:0;font-family:var(--f-num);font-size:24px">Nombres de los jugadores</h2>
+    <h2>Nombres de los jugadores</h2>
     <p class="note" id="nSrc"></p>
-    <p class="note">Para usarlos en todos tus dispositivos: tocá <b>Copiar</b>, andá a tu repositorio de GitHub, abrí (o creá) el archivo <b>jugadores.json</b>, pegá el texto y tocá <b>Commit changes</b>. Cada dispositivo los carga al abrir TrakLive.</p>
+    <p class="note">Para usarlos en todos tus dispositivos: tocá <b>Copiar</b>, andá a tu repositorio de GitHub, abrí (o creá) el archivo <b>jugadores.json</b>, pegá el texto y tocá <b>Commit changes</b>. Los pods aparecen por número de serie y las bandas como <b>FC:nombre de la banda</b>.</p>
     <textarea id="nText" rows="10" spellcheck="false" style="width:100%;font-family:var(--f-mono);font-size:13px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:10px" aria-label="Nombres en formato JSON"></textarea>
     <div class="ft"><span id="nMsg"></span><span style="display:flex;gap:8px"><button id="nApply" type="button">Aplicar texto</button><button id="nCopy" type="button">Copiar</button><button class="primary" id="nClose" type="button">Listo</button></span></div>
   </div>
@@ -203,7 +248,12 @@ summary{cursor:pointer;font-weight:600}
   <div class="sheet" role="dialog" aria-modal="true" aria-label="Detalle del jugador">
     <div class="hd"><input id="dName" aria-label="Nombre del jugador"><span class="chip" id="dChip"></span></div>
     <div class="mets" id="dMets"></div>
-    <div class="ft"><span id="dInfo"></span><span style="display:flex;gap:8px"><button id="dRemove" type="button">Quitar pod</button><button class="primary" id="dClose" type="button">Listo</button></span></div>
+    <div class="form">
+      <label>Objetivo de distancia (m)<input id="dTgt" type="number" inputmode="numeric" step="100"></label>
+      <label>FC máxima (lpm)<input id="dHr" type="number" inputmode="numeric" step="1"></label>
+      <label class="full">Banda de FC de este jugador<select id="dBand"></select></label>
+    </div>
+    <div class="ft"><span id="dInfo"></span><span style="display:flex;gap:8px"><button id="dRemove" type="button">Quitar</button><button class="primary" id="dClose" type="button">Listo</button></span></div>
   </div>
 </div>
 
@@ -218,21 +268,54 @@ const CMD_SNAP=new TextEncoder().encode('AAAAAAF00990000');
 const CMD_OFF=new TextEncoder().encode('AAAAAAX9hK70000');
 const HSR_KMH=18;
 const $=s=>document.querySelector(s);
+const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+function log(...a){const el=$('#log'); el.textContent=(new Date().toLocaleTimeString()+'  '+a.join(' ')+'\n'+el.textContent).slice(0,30000);}
+const hex=u=>Array.from(u,x=>x.toString(16).padStart(2,'0')).join('');
+const fmt=(v,d=0)=>v==null||!isFinite(v)?'–':v.toLocaleString('es-AR',{maximumFractionDigits:d,minimumFractionDigits:d});
+const mmss=s=>!isFinite(s)?'–':Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0');
+
+/* ---------- Configuración ---------- */
+const cfg=Object.assign({zones:[7,14,18,24],target:5000,hrmax:195},store.get('traklive.cfg',{}));
+const pcfg=store.get('traklive.player',{}); // por nombre de jugador: {target,hrmax}
+const names=store.get('traklive.names',{});
+const offRows=new Set(store.get('traklive.off',[]));
+const targetOf=l=>(pcfg[l]&&+pcfg[l].target)||cfg.target;
+const hrmaxOf=l=>(pcfg[l]&&+pcfg[l].hrmax)||cfg.hrmax;
+const zoneOf=kmh=>{const z=cfg.zones; return kmh<z[0]?0:kmh<z[1]?1:kmh<z[2]?2:kmh<z[3]?3:4;};
+const hrZone=pct=>pct==null?-1:pct<0.6?0:pct<0.7?1:pct<0.8?2:pct<0.9?3:4;
+let rosterInfo='Todavía no hay archivo jugadores.json en GitHub; los nombres están guardados solo en este dispositivo.';
+async function loadRoster(){ try{ const r=await fetch('jugadores.json',{cache:'no-store'}); if(!r.ok)return;
+  const j=await r.json(); for(const [k,v] of Object.entries(j)) if(typeof v==='string'&&v.trim()) names[k]=v.trim();
+  store.set('traklive.names',names); rosterInfo='Se cargaron '+Object.keys(j).length+' nombres desde jugadores.json de GitHub.'; render(); }catch(e){} }
 
 /* ---------- Métricas ---------- */
 const METRICS=[
-  {k:'dist',l:'Distancia',u:'m',d:0},
-  {k:'mpm',l:'Mts x min',u:'m/min',d:0},
-  {k:'hsr',l:'HSR +18 km/h (estimado)',u:'m',d:0},
-  {k:'vmax',l:'Vel. máx',u:'km/h',d:1},
-  {k:'imp',l:'Impactos (umbral del pod)',u:'',d:0},
-  {k:'acc',l:'Acc +4 m/s² — post-sesión',post:true},
-  {k:'dec',l:'Dec −4 m/s² — post-sesión',post:true},
-  {k:'pl',l:'Player Load — post-sesión',post:true},
+  {g:'GPS en vivo',k:'dist',l:'Distancia',u:'m',d:0,src:'gps'},
+  {g:'GPS en vivo',k:'mpm',l:'Mts x min',u:'m/min',d:0,src:'gps'},
+  {g:'GPS en vivo',k:'vmax',l:'Vel. máx',u:'km/h',d:1,src:'gps'},
+  {g:'GPS en vivo',k:'imp',l:'Impactos (umbral del pod)',u:'',d:0,src:'gps'},
+  {g:'GPS en vivo',k:'power',l:'Power plays (pod)',u:'',d:0,src:'gps'},
+  {g:'Calculadas por la app',k:'vnow',l:'Velocidad actual',u:'km/h',d:1,src:'gps'},
+  {g:'Calculadas por la app',k:'zones',l:'Zonas de velocidad (m en Z4+Z5)',u:'m',d:0,src:'gps'},
+  {g:'Calculadas por la app',k:'hsr',l:'HSR +18 km/h',u:'m',d:0,src:'gps'},
+  {g:'Calculadas por la app',k:'eff',l:'Esfuerzos HSR',u:'',d:0,src:'gps'},
+  {g:'Calculadas por la app',k:'pk1',l:'Pico 1 min (m/min)',u:'m/min',d:0,src:'gps'},
+  {g:'Calculadas por la app',k:'pk3',l:'Pico 3 min (m/min)',u:'m/min',d:0,src:'gps'},
+  {g:'Calculadas por la app',k:'tgt',l:'% del objetivo de distancia',u:'%',d:0,src:'gps'},
+  {g:'Frecuencia cardíaca',k:'hrpct',l:'% FC máxima',u:'%',d:0,src:'hr'},
+  {g:'Frecuencia cardíaca',k:'hr',l:'FC actual',u:'lpm',d:0,src:'hr'},
+  {g:'Frecuencia cardíaca',k:'red',l:'Tiempo en zona roja (≥90%)',u:'min',d:1,src:'hr'},
+  {g:'Frecuencia cardíaca',k:'hravg',l:'FC media',u:'lpm',d:0,src:'hr'},
+  {g:'Post-sesión (USB)',k:'acc',l:'Acc +4 m/s²',post:true},
+  {g:'Post-sesión (USB)',k:'dec',l:'Dec −4 m/s²',post:true},
+  {g:'Post-sesión (USB)',k:'pl',l:'Player Load',post:true},
 ];
-const NOTES={dist:'Distancia recorrida.',mpm:'Distancia dividida por los minutos. A la derecha de cada barra: ritmo de los últimos 60 s.',hsr:'HSR estimado: distancia de los intervalos entre lecturas con velocidad media de 18 km/h o más.',vmax:'Velocidad máxima de toda la sesión del pod.',imp:'Impactos según el umbral propio del pod.'};
+const NOTES={dist:'Distancia recorrida.',mpm:'Distancia dividida por los minutos. A la derecha: ritmo de los últimos 60 s.',vmax:'Velocidad máxima de toda la sesión del pod.',imp:'Impactos según el umbral propio del pod.',power:'Esfuerzos explosivos que detecta el pod (contador propio del pod).',
+  vnow:'Velocidad media del último intervalo entre lecturas.',zones:'Barra: metros por zona de velocidad. Número: metros en Z4+Z5. Cortes en Ajustes.',hsr:'Distancia de los intervalos con velocidad media de 18 km/h o más.',eff:'Veces que el jugador pasó a 18 km/h o más (entre lecturas).',
+  pk1:'Mejor minuto de la sesión en m/min.',pk3:'Mejores 3 minutos de la sesión en m/min.',tgt:'Distancia de la sesión sobre el objetivo de cada jugador. Verde 90–110 %, amarillo 80–90 %, rojo más de 110 %.',
+  hrpct:'Frecuencia cardíaca sobre la FC máxima de cada jugador.',hr:'Pulsaciones por minuto en este momento.',red:'Minutos con 90 % de la FC máxima o más.',hravg:'Frecuencia cardíaca media del período.'};
 
-/* ---------- Protocolo ---------- */
+/* ---------- Protocolo del pod ---------- */
 function u16le(b,o){return b[o]|(b[o+1]<<8)}
 function u32le(b,o){return (b[o]|(b[o+1]<<8)|(b[o+2]<<16)|(b[o+3]<<24))>>>0}
 function i32le(b,o){return b[o]|(b[o+1]<<8)|(b[o+2]<<16)|(b[o+3]<<24)}
@@ -247,33 +330,26 @@ function parseSnapshots(buf){
 const kmh=raw=>raw*0.0036;
 
 /* ---------- Estado ---------- */
-const pods=new Map(); let order=0;
+const pods=new Map(), bands=new Map(); let order=0;
 let block={n:1,start:Date.now()}; const closedBlocks=[]; const history=[];
-const sess={state:'idle',start:0,pausedAt:0,endAt:0}; // idle | running | paused | ended
-let openKey=null, wakeLock=null;
-const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
-const names=store.get('traklive.names',{});
-let rosterInfo='Todavía no hay archivo jugadores.json en GitHub; los nombres están guardados solo en este dispositivo.';
-async function loadRoster(){ // jugadores.json publicado junto a la app (GitHub Pages)
-  try{ const r=await fetch('jugadores.json',{cache:'no-store'}); if(!r.ok)return;
-    const j=await r.json(); let n=0; for(const [k,v] of Object.entries(j)){ if(typeof v==='string'&&v.trim()&&names[k]!==v.trim()){ names[k]=v.trim(); n++; } }
-    store.set('traklive.names',names); rosterInfo='Se cargaron '+Object.keys(j).length+' nombres desde jugadores.json de GitHub.'; if(n)log('Nombres cargados de jugadores.json:',Object.keys(j).length); render();
-  }catch(e){} }
+const sess={state:'idle',start:0,pausedAt:0,endAt:0};
+let openRow=null, wakeLock=null;
 let intervalS=store.get('traklive.int',3); $('#selInt').value=String(intervalS);
 let metric=store.get('traklive.metric','dist'); if(!METRICS.find(m=>m.k===metric&&!m.post))metric='dist';
-let split=store.get('traklive.split','block'), sortMode=store.get('traklive.sort','value');
-$('#selSplit').value=split; $('#selSort').value=sortMode;
-
-function log(...a){const el=$('#log'); el.textContent=(new Date().toLocaleTimeString()+'  '+a.join(' ')+'\n'+el.textContent).slice(0,30000);}
-const hex=u=>Array.from(u,x=>x.toString(16).padStart(2,'0')).join('');
+let split=store.get('traklive.split','block'), sortMode=store.get('traklive.sort','value'), view=store.get('traklive.view','list');
+$('#selSplit').value=split; $('#selSort').value=sortMode; $('#selView').value=view;
 function endTime(){return sess.state==='paused'?sess.pausedAt:sess.state==='ended'?sess.endAt:Date.now();}
 function elapsedBlock(){ return sess.state==='idle'?0:Math.max(0,endTime()-block.start); }
 function elapsedSession(){ return sess.state==='idle'?0:Math.max(0,endTime()-sess.start); }
-const snapBase=p=>p.snap?{session:p.snap.session,dist:p.snap.dist,impacts:p.snap.impacts,hsr:p.hsr}:null;
+const accZero=()=>({hsr:0,eff:0,z:[0,0,0,0,0]});
+const accClone=a=>({hsr:a.hsr,eff:a.eff,z:a.z.slice()});
+const snapBase=p=>p.snap?{session:p.snap.session,dist:p.snap.dist,impacts:p.snap.impacts,power:p.snap.power,acc:accClone(p.acc)}:null;
+const hrAccZero=()=>({red:0,sum:0,t:0});
+const hrClone=a=>({red:a.red,sum:a.sum,t:a.t});
 
-/* ---------- Pod real ---------- */
+/* ---------- Pod GPS (Bluetooth) ---------- */
 class Pod{
-  constructor(device){this.device=device;this.key=device.id;this.order=order++;this.id=null;this.status='Conectando';this.snap=null;this.base=null;this.sbase=null;this.samples=[];this.buf=new Uint8Array(0);this.pending=null;this.lastOk=0;this.retry=0;this.removed=false;this.timer=null;this.hsr=0;this.disc=0;this.on=true;
+  constructor(device){this.device=device;this.key=device.id;this.order=order++;this.id=null;this.status='Conectando';this.snap=null;this.base=null;this.sbase=null;this.samples=[];this.pk=[];this.pk1=0;this.pk3=0;this.acc=accZero();this.buf=new Uint8Array(0);this.pending=null;this.lastOk=0;this.retry=0;this.removed=false;this.disc=0;
     device.addEventListener('gattserverdisconnected',()=>this.onDisc());}
   label(){return names[this.id]||this.device.name||'Pod'}
   async connect(){
@@ -295,91 +371,126 @@ class Pod{
     if(ref!=null&&this.narrow!==false&&narrowGlobal!==false){ this.narrowRef=ref; this.narrowReq=true; return new TextEncoder().encode('AAAAAAF0099'+Math.max(0,ref-1).toString(16).toUpperCase().padStart(4,'0')); }
     this.narrowReq=false; return CMD_SNAP;
   }
-  async request(){ // la llama la cola: un pod por vez
+  async request(){
     this.lastPoll=Date.now(); this.buf=new Uint8Array(0); this.t0=Date.now();
     const cmd=this.buildCmd(); this.armTimeout(this.narrowReq&&this.narrow!==true?2000:3500);
     try{ if(this.cmd.writeValueWithoutResponse) await this.cmd.writeValueWithoutResponse(cmd); else await this.cmd.writeValue(cmd); }
     catch(e){ try{await this.cmd.writeValue(cmd)}catch(e2){log(this.label(),'error al pedir datos',e2.message); this.done();} }
   }
-  narrowMiss(why){
-    this.narrowFail=(this.narrowFail||0)+1; this.lastPoll=0; // se vuelve a consultar enseguida, con la orden completa
-    if(this.narrow!==true){ this.narrow=false; log(this.label(),'la consulta corta no funcionó ('+why+'); uso la consulta completa');
-      if(narrowGlobal!==true){ narrowGlobal=false; } }
-  }
+  narrowMiss(why){ this.narrowFail=(this.narrowFail||0)+1; this.lastPoll=0;
+    if(this.narrow!==true){ this.narrow=false; log(this.label(),'la consulta corta no funcionó ('+why+'); uso la consulta completa'); if(narrowGlobal!==true)narrowGlobal=false; } }
   armTimeout(ms){clearTimeout(this.pending); this.pending=setTimeout(()=>{ this.pending=null;
     if(this.buf.length>=36){log(this.label(),'respuesta incompleta',this.buf.length,'de',expectedLen(this.buf),'bytes'); this.finish(true);}
     else { if(this.narrowReq)this.narrowMiss('sin respuesta'); else log(this.label(),'sin respuesta del pod'); this.done(); } },ms);}
   startDrain(){ clearTimeout(this.pending); this.pending=null; this.buf=new Uint8Array(0); this.draining=true; this.done(); clearTimeout(this.drainT); this.drainT=setTimeout(()=>this.endDrain(),700); }
   endDrain(){ this.draining=false; this.lastPoll=0; log(this.label(),'listo, pido solo desde la sesión',this.hint); }
   onPacket(p){
-    if(this.draining){ clearTimeout(this.drainT); this.drainT=setTimeout(()=>this.endDrain(),700); return; } // esperando que termine una respuesta larga
-    if(active!==this&&!this.pending)return; // paquete tardío de una consulta anterior
+    if(this.draining){ clearTimeout(this.drainT); this.drainT=setTimeout(()=>this.endDrain(),700); return; }
+    if(active!==this&&!this.pending)return;
     const first=this.buf.length===0;
     const nb=new Uint8Array(this.buf.length+p.length); nb.set(this.buf); nb.set(p,this.buf.length); this.buf=nb;
     const exp=expectedLen(this.buf);
     if(first&&!this.snap&&!this.narrowReq&&this.narrow!==false&&narrowGlobal!==false&&isFinite(exp)&&exp>400){
-      // Respuesta larga: el encabezado ya trae la última sesión; corto y pido solo desde ahí
       this.hint=(p[0]<<8)|p[1]; log(this.label(),'tiene',(p[2]<<8)|p[3],'sesiones guardadas; espero que termine y pido solo desde la',this.hint);
-      this.startDrain(); return;
-    }
+      this.startDrain(); return; }
     if(first&&isFinite(exp)) this.armTimeout(Math.min(40000,2500+exp/20*40));
     if(this.buf.length>=exp) this.finish(false);
   }
   finish(partial){ if(this.pending){clearTimeout(this.pending);this.pending=null} const buf=this.buf; this.buf=new Uint8Array(0);
     this.respMs=Date.now()-this.t0; this.respN=(buf[2]<<8)|buf[3];
-    if(!partial&&this.narrowReq){
-      const list=parseSnapshots(buf);
+    if(!partial&&this.narrowReq){ const list=parseSnapshots(buf);
       if(!list.some(r=>r.session>=this.narrowRef)){ this.narrowMiss('no trajo la sesión actual'); this.done(); return; }
       if(this.narrow!==true){ this.narrow=true; narrowGlobal=true; log(this.label(),'consulta corta OK:',list.length,'registros en',this.respMs,'ms'); }
     } else if(!partial&&!this.narrowReq&&this.respN>3){ log(this.label(),'consulta completa:',this.respN,'sesiones en',this.respMs,'ms'); }
     ingest(this,buf,partial); this.done(); }
   done(){ if(active===this)active=null; }
   onDisc(){ if(this.removed||this.reconnecting)return; this.reconnecting=true; this.ready=false; this.done(); this.disc++;
-    this.status='Reconectando'; log(this.label(),'se desconectó, reintentando'); render(); clearTimeout(this.pending); this.pending=null; clearTimeout(this.timer);
+    this.status='Reconectando'; log(this.label(),'se desconectó, reintentando'); render(); clearTimeout(this.pending); this.pending=null;
     const attempt=()=>{ if(this.removed)return; try{this.device.gatt.disconnect()}catch(e){}
       this.connect().catch(e=>{ log(this.label(),'reconexión falló:',e.message); const w=Math.min(1000*2**this.retry,8000); this.retry++; render(); setTimeout(attempt,w); }); };
     setTimeout(attempt,800); }
-  remove(){this.removed=true;this.ready=false;this.done();clearTimeout(this.timer);clearTimeout(this.pending);try{this.device.gatt.disconnect()}catch(e){}}
+  remove(){this.removed=true;this.ready=false;this.done();clearTimeout(this.pending);try{this.device.gatt.disconnect()}catch(e){}}
 }
-/* Cola de lecturas: el Bluetooth del teléfono atiende un pod por vez */
-let active=null, narrowGlobal=null; // null = sin probar todavía
-setInterval(()=>{
-  if(active)return;
-  const now=Date.now(); let pick=null;
+let active=null, narrowGlobal=null;
+setInterval(()=>{ // cola: un pod por vez
+  if(active)return; const now=Date.now(); let pick=null;
   for(const p of pods.values()){ if(!(p instanceof Pod)||!p.ready||p.removed||p.reconnecting||p.draining||!p.device.gatt.connected)continue;
     if(now-p.lastPoll<intervalS*1000)continue; if(!pick||p.lastPoll<pick.lastPoll)pick=p; }
   if(pick){ active=pick; pick.request(); }
 },120);
 
-/* ---------- Pod simulado (mismo formato de bytes que el real) ---------- */
+/* ---------- Banda de frecuencia cardíaca (servicio estándar 0x180D) ---------- */
+class Band{
+  constructor(device){this.device=device;this.key='band:'+device.id;this.order=order++;this.status='Conectando';this.hr=null;this.lastOk=0;this.lastT=0;this.acc=hrAccZero();this.base=hrAccZero();this.sbase=hrAccZero();this.retry=0;this.removed=false;this.disc=0;this.battery=null;
+    device.addEventListener('gattserverdisconnected',()=>this.onDisc());}
+  bandKey(){return 'FC:'+(this.device.name||this.device.id)}
+  label(){return names[this.bandKey()]||this.device.name||'Banda'}
+  async connect(){
+    this.status=this.lastOk?'Reconectando':'Conectando'; render();
+    const to=(p,ms)=>Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(new Error('tiempo de espera agotado')),ms))]);
+    const server=await to(this.device.gatt.connect(),12000);
+    const svc=await to(server.getPrimaryService('heart_rate'),8000);
+    if(this.ch&&this.handler)this.ch.removeEventListener('characteristicvaluechanged',this.handler);
+    this.ch=await svc.getCharacteristic('heart_rate_measurement');
+    this.handler=this.handler||(e=>this.onHr(e.target.value));
+    this.ch.addEventListener('characteristicvaluechanged',this.handler);
+    await to(this.ch.startNotifications(),8000);
+    try{ const bs=await server.getPrimaryService('battery_service'); const bl=await (await bs.getCharacteristic('battery_level')).readValue(); this.battery=bl.getUint8(0); }catch(e){}
+    this.status='Conectado'; this.retry=0; this.reconnecting=false; log(this.label(),'banda conectada'+(this.battery!=null?' (batería '+this.battery+'%)':'')); render();
+  }
+  onHr(v){ const flags=v.getUint8(0); const hr=(flags&1)?v.getUint16(1,true):v.getUint8(1); feedHr(this,hr); }
+  onDisc(){ if(this.removed||this.reconnecting)return; this.reconnecting=true; this.disc++; this.status='Reconectando'; log(this.label(),'banda desconectada, reintentando'); render();
+    const attempt=()=>{ if(this.removed)return; try{this.device.gatt.disconnect()}catch(e){}
+      this.connect().catch(e=>{ log(this.label(),'reconexión falló:',e.message); const w=Math.min(1000*2**this.retry,8000); this.retry++; render(); setTimeout(attempt,w); }); };
+    setTimeout(attempt,800); }
+  remove(){this.removed=true;try{this.device.gatt.disconnect()}catch(e){}}
+}
+function feedHr(b,hr){
+  const now=Date.now();
+  if(hr<25||hr>240){ return; }
+  if(sess.state==='running'&&b.lastT&&b.hr!=null){ const dt=Math.min(5,(now-b.lastT)/1000); const pct=b.hr/hrmaxOf(b.label());
+    b.acc.t+=dt; b.acc.sum+=b.hr*dt; if(pct>=0.9)b.acc.red+=dt; }
+  b.hr=hr; b.lastT=now; b.lastOk=now;
+  if(!b.lastLog||now-b.lastLog>5000){ b.lastLog=now; history.push({t:new Date(now).toISOString(),jugador:b.label(),dispositivo:b.bandKey(),bloque:block.n,estado:sess.state,fc:hr}); }
+  scheduleRender();
+}
+
+/* ---------- Simulación (Demo) ---------- */
 const POS=['Pilar','Hooker','Pilar','2ª línea','2ª línea','Ala','Ala','Octavo','Medio scrum','Apertura','Wing','Centro','Centro','Wing','Fullback','Suplente','Suplente'];
 class FakePod{
-  constructor(i){this.key='demo'+i;this.order=order++;this.i=i;this.id='DEMO-'+String(i+1).padStart(2,'0');this.device={name:'PlayTEK'};this.status='Conectado';this.snap=null;this.base=null;this.sbase=null;this.samples=[];this.removed=false;this.hsr=0;this.disc=0;this.on=true;
-    this.sess=40+i;this.d=0;this.imp=0;this.top=0;this.valid=0;this.gpsAt=Date.now()+(i===16?25000:i%5===0?6000:0);this.pace=i<8?1.5:2.0;this.timer=null;}
+  constructor(i){this.key='demo'+i;this.order=order++;this.i=i;this.id='DEMO-'+String(i+1).padStart(2,'0');this.device={name:'PlayTEK'};this.status='Conectado';this.snap=null;this.base=null;this.sbase=null;this.samples=[];this.pk=[];this.pk1=0;this.pk3=0;this.acc=accZero();this.removed=false;this.disc=0;
+    this.sess=40+i;this.d=0;this.imp=0;this.pw=0;this.top=0;this.valid=0;this.gpsAt=Date.now()+(i===16?25000:i%5===0?6000:0);this.pace=i<8?1.5:2.0;this.timer=null;}
   async connect(){render();this.schedule(200+this.i*60)}
   label(){return names[this.id]||(this.i+1)+' · '+POS[this.i]}
   schedule(ms){clearTimeout(this.timer); if(!this.removed) this.timer=setTimeout(()=>this.poll(),ms);}
   poll(){
     const dt=intervalS, gps=Date.now()>=this.gpsAt;
-    if(gps){ const burst=Math.random()<.14?3.8+Math.random()*2.5:0; const v=Math.max(0,this.pace+(Math.random()-.5)*1.4+burst);
-      this.d+=v*dt; if(Math.random()<(this.i<8?.12:.05))this.imp++; this.top=Math.max(this.top,Math.round((v+0.8)*1000)); this.valid+=dt*10; }
-    const recs=[[this.sess-1,3100,80,3,6400,30000],[this.sess,Math.round(this.d),0,this.imp,this.top,this.valid]];
+    if(gps){ const burst=Math.random()<.16?3.5+Math.random()*3:0; const v=Math.max(0,this.pace+(Math.random()-.5)*1.4+burst); this.v=v;
+      this.d+=v*dt; if(Math.random()<(this.i<8?.12:.05))this.imp++; if(burst&&Math.random()<.5)this.pw++; this.top=Math.max(this.top,Math.round((v+0.8)*1000)); this.valid+=dt*10; }
+    const recs=[[this.sess-1,3100,80,3,6400,30000,4],[this.sess,Math.round(this.d),0,this.imp,this.top,this.valid,this.pw]];
     let L=recs.length*32+4; if(L%20)L+=20-L%20; const b=new Uint8Array(L); b[0]=0;b[1]=this.sess&255;b[2]=0;b[3]=recs.length;
     recs.forEach((r,k)=>{const o=4+32*k; b[o]=r[0]>>8;b[o+1]=r[0]&255; const w16=(x,v)=>{b[o+x]=v&255;b[o+x+1]=(v>>8)&255}; const w32=(x,v)=>{for(let j=0;j<4;j++)b[o+x+j]=(v>>>(8*j))&255};
-      w16(2,r[1]);w16(4,r[2]);w16(6,r[3]);w16(8,r[4]);w32(10,r[5]);w32(14,93000000);w32(18,-344370000);w32(22,-587940000);w32(26,r[5]);});
+      w16(2,r[1]);w16(4,r[2]);w16(6,r[3]);w16(8,r[4]);w32(10,r[5]);w32(14,93000000);w32(18,-344370000);w32(22,-587940000);w32(26,r[5]);w16(30,r[6]);});
     this.respMs=40; this.respN=recs.length; ingest(this,b,false); this.schedule(intervalS*1000);
   }
   remove(){this.removed=true;clearTimeout(this.timer)}
 }
+class FakeBand{
+  constructor(i,pod){this.key='demoband'+i;this.order=order++;this.i=i;this.pod=pod;this.device={name:'Polar H10 DEMO'+(i+1)};this.status='Conectado';this.hr=null;this.lastOk=0;this.lastT=0;this.acc=hrAccZero();this.base=hrAccZero();this.sbase=hrAccZero();this.removed=false;this.disc=0;this.cur=95+Math.random()*20;this.battery=80;this.timer=null;}
+  bandKey(){return 'FC:'+this.device.name}
+  label(){return names[this.bandKey()]||(this.pod?this.pod.label():'Banda '+(this.i+1))}
+  async connect(){ const tick=()=>{ if(this.removed)return; const v=this.pod&&this.pod.v!=null?this.pod.v:1.5; const tgt=88+v*16+(this.i%4)*4; this.cur+=(tgt-this.cur)*0.25+(Math.random()-.5)*3; feedHr(this,Math.round(Math.min(205,this.cur))); this.timer=setTimeout(tick,1000); }; setTimeout(tick,300+this.i*40); }
+  remove(){this.removed=true;clearTimeout(this.timer)}
+}
 
-/* ---------- Ingesta ---------- */
+/* ---------- Ingesta del pod ---------- */
 function ingest(pod,buf,partial){
   const list=parseSnapshots(buf);
   if(!list.length){log(pod.label(),'respuesta sin sesiones',hex(buf).slice(0,80));return}
   if(partial){ pod.bad=(pod.bad||0)+1; log(pod.label(),'respuesta incompleta descartada'); return; }
   const cur=list.reduce((a,b)=>b.session>a.session?b:a);
   const prev0=pod.snap;
-  if(prev0){ // filtro de lecturas imposibles (paquetes perdidos o mezclados)
+  if(prev0){
     const reject=why=>{ pod.bad=(pod.bad||0)+1; log(pod.label(),'lectura descartada:',why,'(sesión',cur.session,'dist',cur.dist+')'); };
     if(cur.session<prev0.session){ reject('la sesión retrocedió'); return; }
     if(cur.session===prev0.session&&(cur.dist<prev0.dist||cur.valid<prev0.valid||cur.impacts<prev0.impacts)){ reject('los valores bajaron'); return; }
@@ -394,213 +505,292 @@ function ingest(pod,buf,partial){
   if(prev&&prev.session===cur.session){
     if(cur.valid>prev.valid)pod.lastValid=now;
     const dd=cur.dist-prev.dist, dt=(now-pod.lastT)/1000;
-    if(dd>0&&dt>0&&dd/dt*3.6>=HSR_KMH)pod.hsr+=dd;
-  } else if(prev){ pod.hsr=0; }
+    const v=dt>0?dd/dt*3.6:0; pod.vnow=v;
+    if(sess.state==='running'&&dt>0&&dt<30){ // zonas y esfuerzos solo con la sesión en curso
+      pod.acc.z[zoneOf(v)]+=dd; if(v>=HSR_KMH){ pod.acc.hsr+=dd; if(!pod.inHsr)pod.acc.eff++; pod.inHsr=true; } else pod.inHsr=false;
+    }
+  } else if(prev){ pod.inHsr=false; }
   pod.snap=cur; pod.lastOk=now; pod.lastT=now;
-  const zero={session:cur.session,dist:0,impacts:0,hsr:0};
+  const zero={session:cur.session,dist:0,impacts:0,power:0,acc:accClone(pod.acc)};
   if(!pod.base||pod.base.session!==cur.session) pod.base=pod.base?zero:snapBase(pod);
-  if(!pod.sbase||pod.sbase.session!==cur.session) pod.sbase=pod.sbase?{...zero}:snapBase(pod);
+  if(!pod.sbase||pod.sbase.session!==cur.session) pod.sbase=pod.sbase?{...zero,acc:accClone(pod.acc)}:snapBase(pod);
   pod.samples.push([now,cur.dist]); while(pod.samples.length&&now-pod.samples[0][0]>70000)pod.samples.shift();
-  history.push({t:new Date(now).toISOString(),jugador:pod.label(),pod:pod.id,bloque:block.n,estado:sess.state,sesion_pod:cur.session,dist_total:cur.dist,hsr_est:Math.round(pod.hsr),sprint_pod:cur.sprint,vmax_kmh:kmh(cur.topRaw).toFixed(1),impactos:cur.impacts,power_plays:cur.power,registros:cur.valid});
-  if(history.length>40000)history.shift();
+  if(sess.state==='running'){ pod.pk.push([now,cur.dist]); while(pod.pk.length&&now-pod.pk[0][0]>200000)pod.pk.shift();
+    for(const [w,key] of [[60000,'pk1'],[180000,'pk3']]){ const last=pod.pk[pod.pk.length-1]; let a=null; for(const s of pod.pk){ if(last[0]-s[0]<=w){a=s;break;} }
+      if(a&&last[0]-a[0]>=w*0.9){ const r=(last[1]-a[1])/((last[0]-a[0])/60000); if(r>pod[key])pod[key]=r; } } }
+  history.push({t:new Date(now).toISOString(),jugador:pod.label(),dispositivo:pod.id,bloque:block.n,estado:sess.state,sesion_pod:cur.session,dist_total:cur.dist,vel_kmh:pod.vnow!=null?pod.vnow.toFixed(1):'',hsr_est:Math.round(pod.acc.hsr),esf_hsr:pod.acc.eff,z1:Math.round(pod.acc.z[0]),z2:Math.round(pod.acc.z[1]),z3:Math.round(pod.acc.z[2]),z4:Math.round(pod.acc.z[3]),z5:Math.round(pod.acc.z[4]),sprint_pod:cur.sprint,vmax_kmh:kmh(cur.topRaw).toFixed(1),impactos:cur.impacts,power_plays:cur.power,registros:cur.valid});
+  if(history.length>60000)history.shift();
   scheduleRender();
 }
-function stats(p,scope){
-  scope=scope||split;
-  if(!p.snap||!p.base||!p.sbase)return null;
+
+/* ---------- Estadísticas ---------- */
+function gpsStats(p,scope){
+  scope=scope||split; if(!p||!p.snap||!p.base||!p.sbase)return null;
   const frozen=(sess.state==='paused'||sess.state==='ended')&&p.pz&&p.pz.session===p.snap.session;
-  const s=frozen?Object.assign({},p.snap,{dist:p.pz.dist,impacts:p.pz.impacts}):p.snap, hsrNow=frozen?p.pz.hsr:p.hsr;
+  const s=frozen?Object.assign({},p.snap,{dist:p.pz.dist,impacts:p.pz.impacts,power:p.pz.power}):p.snap;
   const b=scope==='session'?p.sbase:p.base, ms=scope==='session'?elapsedSession():elapsedBlock(), idle=sess.state==='idle';
   const dist=idle?0:Math.max(0,s.dist-b.dist);
+  const z=p.acc.z.map((v,i)=>Math.max(0,v-b.acc.z[i]));
   let mm60=null; const sm=p.samples; if(sess.state==='running'&&sm.length>1){const last=sm[sm.length-1]; const a=sm.find(x=>last[0]-x[0]<=60000)||sm[0]; const dt=(last[0]-a[0])/60000; if(dt>0.15)mm60=(last[1]-a[1])/dt;}
-  return {dist,mpm:ms>5000?dist/(ms/60000):0,mm60,hsr:idle?0:Math.max(0,hsrNow-b.hsr),vmax:kmh(s.topRaw),imp:idle?0:Math.max(0,s.impacts-b.impacts),acc:null,dec:null,pl:null,total:s.dist,sprint:s.sprint,session:s.session,valid:s.valid};
+  const sessDist=idle?0:Math.max(0,s.dist-p.sbase.dist), label=p.label();
+  return {dist,mpm:ms>5000?dist/(ms/60000):0,mm60,hsr:Math.max(0,p.acc.hsr-b.acc.hsr),eff:Math.max(0,p.acc.eff-b.acc.eff),z,zones:z[3]+z[4],
+    vnow:sess.state==='running'?(p.vnow||0):null,pk1:p.pk1||null,pk3:p.pk3||null,tgt:idle?0:100*sessDist/targetOf(label),
+    vmax:kmh(s.topRaw),imp:idle?0:Math.max(0,s.impacts-b.impacts),power:idle?0:Math.max(0,s.power-(b.power||0)),total:s.dist,sprint:s.sprint,session:s.session};
 }
-function state(p){
-  const now=Date.now(), age=(now-p.lastOk)/1000;
-  if(p.status==='Reconectando')return['Reconectando','warn'];
-  if(p.status==='Conectando'||!p.lastOk)return['Conectando','warn'];
+function hrStats(b,scope){
+  scope=scope||split; if(!b)return null;
+  const base=scope==='session'?b.sbase:b.base, live=b.lastOk&&Date.now()-b.lastOk<8000;
+  const hr=live?b.hr:null, pct=hr!=null?hr/hrmaxOf(b.label()):null;
+  const dt=b.acc.t-base.t, sum=b.acc.sum-base.sum;
+  return {hr,hrpct:pct!=null?pct*100:null,zone:hrZone(pct),red:(b.acc.red-base.red)/60,hravg:dt>10?sum/dt:null};
+}
+function devState(d){
+  if(!d)return null; const now=Date.now(), age=(now-d.lastOk)/1000;
+  if(d.status==='Reconectando')return['Reconectando','warn'];
+  if(d.status==='Conectando'||!d.lastOk)return['Conectando','warn'];
+  if(d instanceof Band||d instanceof FakeBand) return age>8?['Sin pulso '+Math.round(age)+' s','bad']:['FC OK','ok'];
   if(age>Math.max(intervalS*3+6,pods.size*2+12))return['Sin datos '+Math.round(age)+' s','bad'];
-  if(p.lastValid&&now-p.lastValid<15000)return['GPS OK','ok'];
+  if(d.lastValid&&now-d.lastValid<15000)return['GPS OK','ok'];
   return['Esperando GPS','warn'];
 }
 
-/* ---------- Interfaz ---------- */
-const fmt=(v,d=0)=>v==null||!isFinite(v)?'–':v.toLocaleString('es-AR',{maximumFractionDigits:d,minimumFractionDigits:d});
-const shortId=p=>p.id?(p.id.startsWith('DEMO')?p.id:p.id.slice(-4)):'';
-function buildMetricSelect(){const sel=$('#selMetric'); sel.innerHTML='';
-  for(const m of METRICS){const o=document.createElement('option'); o.value=m.k; o.textContent=m.l; if(m.post)o.disabled=true; sel.appendChild(o);}
-  sel.value=metric; $('#mnote').textContent=NOTES[metric]||'';
+/* ---------- Filas: un jugador = pod y/o banda con el mismo nombre ---------- */
+function buildRows(){
+  const map=new Map(); const keyOf=l=>l.trim().toLowerCase();
+  for(const p of pods.values()){ const l=p.label(), k=keyOf(l); if(!map.has(k))map.set(k,{label:l,pod:null,band:null,order:p.order}); const r=map.get(k); if(!r.pod)r.pod=p; else map.set(k+'#'+p.key,{label:l,pod:p,band:null,order:p.order}); }
+  for(const b of bands.values()){ const l=b.label(), k=keyOf(l); if(map.has(k)&&!map.get(k).band){ map.get(k).band=b; map.get(k).order=Math.min(map.get(k).order,b.order); } else map.set(map.has(k)?k+'#'+b.key:k,{label:l,pod:null,band:b,order:b.order}); }
+  const rows=[...map.entries()].map(([k,r])=>{ r.key=k; r.g=gpsStats(r.pod); r.h=hrStats(r.band); r.sp=devState(r.pod); r.sb=devState(r.band); r.on=!offRows.has(r.label); return r; });
+  return rows;
 }
+function rowState(r){ const s=[r.sp,r.sb].filter(Boolean); if(!s.length)return['–','']; const bad=s.find(x=>x[1]==='bad'), warn=s.find(x=>x[1]==='warn'); return bad||warn||s[0]; }
+function valueOf(r,k){ const m=METRICS.find(x=>x.k===k); if(!m||m.post)return null; const src=m.src==='hr'?r.h:r.g; return src?src[k]:null; }
+
+/* ---------- Interfaz ---------- */
+function buildMetricSelect(){const sel=$('#selMetric'); sel.innerHTML=''; let grp=null, cur=null;
+  for(const m of METRICS){ if(m.g!==grp){ grp=m.g; cur=document.createElement('optgroup'); cur.label=m.g; sel.appendChild(cur);} const o=document.createElement('option'); o.value=m.k; o.textContent=m.l+(m.post?' (post-sesión)':''); if(m.post)o.disabled=true; cur.appendChild(o);}
+  sel.value=metric; noteFor(); }
+function noteFor(){ $('#mnote').textContent=view==='hr'?'Cuadros coloreados por zona de FC: gris < 60 %, azul 60–70 %, verde 70–80 %, naranja 80–90 %, rojo ≥ 90 % de la FC máxima.':(NOTES[metric]||'');
+  const lg=$('#legend'); lg.hidden=!(view==='list'&&metric==='zones');
+  if(!lg.hidden){ const z=cfg.zones; const lab=['Z1 < '+z[0],'Z2 '+z[0]+'–'+z[1],'Z3 '+z[1]+'–'+z[2],'Z4 '+z[2]+'–'+z[3],'Z5 > '+z[3]]; lg.innerHTML=lab.map((t,i)=>'<span><i style="background:var(--gz'+(i+1)+')"></i>'+t+' km/h</span>').join(''); } }
 let rq=false; function scheduleRender(){ if(!rq){rq=true; requestAnimationFrame(()=>{rq=false; render();});} }
 function render(){
-  const list=$('#list'); $('#empty').hidden=pods.size>0;
-  const m=METRICS.find(x=>x.k===metric);
-  const rows=[...pods.values()].map(p=>({p,s:stats(p),st:state(p)}));
-  const valOf=r=>r.s?r.s[metric]:null;
-  const sel=rows.filter(r=>r.p.on), vals=sel.map(valOf).filter(v=>v!=null&&isFinite(v));
-  const max=Math.max(1e-9,...rows.map(valOf).filter(v=>v!=null&&isFinite(v)),0);
-  if(sortMode==='value') rows.sort((a,b)=>(valOf(b)??-1)-(valOf(a)??-1)||a.p.order-b.p.order);
-  else if(sortMode==='name') rows.sort((a,b)=>a.p.label().localeCompare(b.p.label(),'es',{numeric:true}));
-  else rows.sort((a,b)=>a.p.order-b.p.order);
-  const lead=vals.length?Math.max(...vals):null;
+  const rows=buildRows(); $('#empty').hidden=rows.length>0;
+  $('#list').hidden=view!=='list'; $('#tiles').hidden=view!=='hr';
+  const m=METRICS.find(x=>x.k===metric), k=view==='hr'?'hrpct':metric, mk=METRICS.find(x=>x.k===k);
+  const vOf=r=>valueOf(r,k);
+  if(sortMode==='value') rows.sort((a,b)=>(vOf(b)??-1)-(vOf(a)??-1)||a.order-b.order);
+  else if(sortMode==='name') rows.sort((a,b)=>a.label.localeCompare(b.label,'es',{numeric:true}));
+  else rows.sort((a,b)=>a.order-b.order);
+  const sel=rows.filter(r=>r.on), vals=sel.map(vOf).filter(v=>v!=null&&isFinite(v));
+  if(view==='list') renderList(rows,m); else renderTiles(rows);
+  const gOk=rows.filter(r=>r.sp&&r.sp[1]==='ok').length, gN=rows.filter(r=>r.pod).length, hOk=rows.filter(r=>r.sb&&r.sb[1]==='ok').length, hN=rows.filter(r=>r.band).length;
+  $('#gpsCount').innerHTML=[gN?'<b>'+gOk+'</b> de '+gN+' con GPS':'',hN?'<b>'+hOk+'</b> de '+hN+' con FC':''].filter(Boolean).join(' · ');
+  $('#avg').innerHTML='Promedio'+(sel.length<rows.length?' ('+sel.length+' sel.)':'')+' <b>'+(vals.length?fmt(vals.reduce((a,b)=>a+b,0)/vals.length,mk.d)+(mk.u?' '+mk.u:''):'–')+'</b>';
+  $('#btnSelAll').textContent=rows.every(r=>r.on)?'Todos':'Seleccionados: '+sel.length;
+  if(openRow)fillDetail();
+}
+function renderList(rows,m){
+  const list=$('#list'); const vals=rows.map(r=>valueOf(r,metric)).filter(v=>v!=null&&isFinite(v));
+  const max=metric==='tgt'?Math.max(120,...vals):Math.max(1e-9,...vals,0);
+  const zmax=metric==='zones'?Math.max(1,...rows.map(r=>r.g?r.g.z.reduce((a,b)=>a+b,0):0)):1;
+  const lead=rows.filter(r=>r.on).map(r=>valueOf(r,metric)).filter(v=>v!=null).reduce((a,b)=>Math.max(a,b),-Infinity);
   const keep=new Set();
-  rows.forEach((r,idx)=>{ const k=r.p.key; keep.add(k);
+  rows.forEach((r,idx)=>{ const k=r.key; keep.add(k);
     let el=list.querySelector('[data-k="'+CSS.escape(k)+'"]');
     if(!el){el=document.createElement('div'); el.className='pl'; el.dataset.k=k;
-      el.innerHTML='<div class="main"><button type="button" class="who"><span class="dot"></span><span class="nm"></span><span class="id"></span><span class="st"></span></button><div class="bar"><i></i><span class="v"></span><span class="x"></span></div></div><button type="button" class="sel" aria-label="Incluir en el promedio">✓</button>';
-      el.querySelector('.who').addEventListener('click',()=>openDetail(k));
-      el.querySelector('.bar').addEventListener('click',()=>openDetail(k));
-      el.querySelector('.sel').addEventListener('click',()=>{const p=pods.get(k); p.on=!p.on; render();}); }
+      el.innerHTML='<div class="main"><button type="button" class="who"><span class="dot"></span><span class="nm"></span><span class="id"></span><span class="hrb"></span><span class="st"></span></button><div class="bar"><i></i><span class="seg"></span><span class="v"></span><span class="x"></span></div></div><button type="button" class="sel" aria-label="Incluir en el promedio">✓</button>';
+      el.querySelector('.who').addEventListener('click',()=>openDetail(el.dataset.k));
+      el.querySelector('.bar').addEventListener('click',()=>openDetail(el.dataset.k));
+      el.querySelector('.sel').addEventListener('click',()=>{ const lbl=el.dataset.label; if(offRows.has(lbl))offRows.delete(lbl); else offRows.add(lbl); store.set('traklive.off',[...offRows]); render(); }); }
+    el.dataset.label=r.label;
     if(list.children[idx]!==el) list.insertBefore(el,list.children[idx]||null);
-    const [txt,cls]=r.st, v=valOf(r);
-    el.classList.toggle('off',!r.p.on); el.classList.toggle('bad',cls==='bad'); el.classList.toggle('lead',r.p.on&&v!=null&&v===lead&&v>0);
+    const [txt,cls]=rowState(r), v=valueOf(r,metric);
+    el.className='pl'+(r.on?'':' off')+(cls==='bad'?' bad':'')+(r.on&&v!=null&&v===lead&&v>0&&metric!=='tgt'?' lead':'');
+    if(metric==='tgt'&&v!=null) el.classList.add(v>110?'t-over':v>=90?'t-ok':v>=80?'t-near':'t-low');
     el.querySelector('.dot').className='dot '+cls;
-    el.querySelector('.nm').textContent=r.p.label();
-    el.querySelector('.id').textContent=shortId(r.p)?'(Pod '+shortId(r.p)+')':'';
+    el.querySelector('.nm').textContent=r.label;
+    el.querySelector('.id').textContent=[r.pod&&r.pod.id?'Pod '+(String(r.pod.id).startsWith('DEMO')?r.pod.id.slice(-2):String(r.pod.id).slice(-4)):'',r.band?'Banda':''].filter(Boolean).join(' + ');
+    const hb=el.querySelector('.hrb'); if(r.h&&r.h.hr!=null){ hb.textContent='♥ '+r.h.hr; hb.className='hrb hz'+Math.max(0,r.h.zone); hb.hidden=false; } else hb.hidden=true;
     const st=el.querySelector('.st'); st.textContent=cls==='ok'?'':txt; st.className='st '+cls;
-    el.querySelector('.v').innerHTML=r.s?fmt(v,m.d)+(m.u?'<small>'+m.u+'</small>':''):'–';
-    el.querySelector('.bar i').style.width=(v!=null&&isFinite(v)&&max>0?Math.round(100*v/max):0)+'%';
-    el.querySelector('.x').textContent=metric==='mpm'&&r.s&&r.s.mm60!=null?'60 s: '+fmt(r.s.mm60):'';
-    el.querySelector('.sel').setAttribute('aria-pressed',String(r.p.on));
+    el.querySelector('.v').innerHTML=v!=null?fmt(v,m.d)+(m.u?'<small>'+m.u+'</small>':''):'–';
+    const fill=el.querySelector('.bar i'), seg=el.querySelector('.seg');
+    if(metric==='zones'&&r.g){ fill.style.width='0'; seg.hidden=false;
+      if(seg.children.length!==5)seg.innerHTML='<span style="background:var(--gz1)"></span><span style="background:var(--gz2)"></span><span style="background:var(--gz3)"></span><span style="background:var(--gz4)"></span><span style="background:var(--gz5)"></span>';
+      r.g.z.forEach((d,i)=>{ seg.children[i].style.width=(100*d/zmax)+'%'; }); seg.style.width='100%';
+    } else { seg.hidden=true; fill.style.width=(v!=null&&isFinite(v)&&max>0?Math.min(100,Math.round(100*v/max)):0)+'%'; }
+    el.querySelector('.x').textContent=metric==='mpm'&&r.g&&r.g.mm60!=null?'60 s: '+fmt(r.g.mm60):metric==='tgt'&&r.g?fmt(targetOf(r.label))+' m':metric==='zones'&&r.g?'total '+fmt(r.g.dist)+' m':'';
+    el.querySelector('.sel').setAttribute('aria-pressed',String(r.on));
   });
   [...list.children].forEach(c=>{if(!keep.has(c.dataset.k))c.remove()});
-  const ok=rows.filter(r=>r.st[1]==='ok').length;
-  $('#gpsCount').innerHTML=pods.size?'<b>'+ok+'</b> de '+pods.size+' con GPS':'';
-  $('#avg').innerHTML='Promedio'+(sel.length<rows.length?' ('+sel.length+' sel.)':'')+' <b>'+(vals.length?fmt(vals.reduce((a,b)=>a+b,0)/vals.length,m.d)+(m.u?' '+m.u:''):'–')+'</b>';
-  $('#btnSelAll').textContent=rows.every(r=>r.p.on)?'Todos':'Seleccionados: '+sel.length;
-  if(openKey)fillDetail();
 }
-function openDetail(k){openKey=k; $('#ov').hidden=false; const p=pods.get(k); $('#dName').value=p.label(); fillDetail(); }
-function closeDetail(){openKey=null; $('#ov').hidden=true;}
-function fillDetail(){const p=pods.get(openKey); if(!p){closeDetail();return}
-  const s=stats(p,'block'), ss=stats(p,'session'), [txt,cls]=state(p); const c=$('#dChip'); c.textContent=txt; c.className='chip '+cls;
-  const items=[['Dist. bloque',s&&fmt(s.dist),'m'],['Dist. sesión',ss&&fmt(ss.dist),'m'],['Mts x min bloque',s&&fmt(s.mpm),'m/min'],['m/min 60 s',s&&fmt(s.mm60),''],['HSR +18 bloque (est.)',s&&fmt(s.hsr),'m'],['Vel. máx sesión',s&&fmt(s.vmax,1),'km/h'],['Impactos bloque',s&&fmt(s.imp),''],['Sprint (pod)',s&&fmt(s.sprint),'m'],['Acc +4',null,'post'],['Dec −4',null,'post'],['Player Load',null,'post']];
-  $('#dMets').innerHTML=items.map(([l,v,u])=>u==='post'?'<div class="met na"><div class="l">'+l+'</div><div class="v">post-sesión</div></div>':'<div class="met"><div class="l">'+l+'</div><div class="v">'+(v||'–')+(u?' <small>'+u+'</small>':'')+'</div></div>').join('');
-  $('#dInfo').textContent=(p.id||'')+(s?' · sesión del pod '+s.session:'')+(p.respN!=null?' · última respuesta: '+p.respN+' registros, '+p.respMs+' ms'+(p.narrow===true?' (consulta corta)':p.narrow===false?' (consulta completa)':''):'')+(p.disc?' · cortes: '+p.disc:'')+(p.bad?' · lecturas descartadas: '+p.bad:'');
-}
-function renderBlocks(){const tb=$('#tblBlocks tbody'); tb.innerHTML=''; $('#noBlocks').hidden=closedBlocks.length>0;
-  for(const r of closedBlocks.slice().reverse()){const tr=document.createElement('tr');
-    [r.jugador,'Bloque '+r.bloque,r.dur,fmt(r.dist),fmt(r.mpm),fmt(r.hsr),fmt(r.vmax,1),fmt(r.imp)].forEach(v=>{const td=document.createElement('td');td.textContent=v;tr.appendChild(td)}); tb.appendChild(tr);}}
-const hms=ms=>{const s=Math.floor(ms/1000);return [Math.floor(s/3600),Math.floor(s/60)%60,s%60].map(x=>String(x).padStart(2,'0')).join(':')};
-function tick(){ const ms=split==='session'?elapsedSession():elapsedBlock(); $('#clock').textContent=hms(ms);
-  const lbl={idle:'Sin iniciar',running:'En curso',paused:'En pausa',ended:'Finalizada'}[sess.state];
-  $('#clockLbl').textContent=(split==='session'?'Sesión':'Bloque '+block.n)+' · '+lbl; }
-setInterval(()=>{tick(); render();},1000);
-function updateControls(){
-  const st=sess.state, play=$('#btnPlay');
-  play.textContent=st==='running'?'❚❚':'▶'; play.setAttribute('aria-label',st==='running'?'Pausar sesión':st==='paused'?'Reanudar sesión':'Iniciar sesión');
-  $('#btnStop').hidden=!(st==='running'||st==='paused'); $('#btnBlock').hidden=st!=='running';
-  $('#btnOff').hidden=!(st==='ended'&&pods.size>0); tick();
+function renderTiles(rows){
+  const box=$('#tiles'); const keep=new Set();
+  rows.forEach((r,idx)=>{ const k=r.key; keep.add(k);
+    let el=box.querySelector('[data-k="'+CSS.escape(k)+'"]');
+    if(!el){ el=document.createElement('button'); el.type='button'; el.className='tile'; el.dataset.k=k; el.innerHTML='<span class="nm"></span><span class="pc"></span><span class="bpm"><span></span><span></span></span>'; el.addEventListener('click',()=>openDetail(el.dataset.k)); }
+    if(box.children[idx]!==el) box.insertBefore(el,box.children[idx]||null);
+    const h=r.h;
+    el.className='tile'+(h&&h.hr!=null?' hz'+Math.max(0,h.zone):' nohr')+(r.on?'':' off');
+    el.querySelector('.nm').textContent=r.label;
+    el.querySelector('.pc').innerHTML=h&&h.hrpct!=null?fmt(h.hrpct)+'<small>%</small>':r.band?'—':'sin banda';
+    const sp=el.querySelectorAll('.bpm span'); sp[0].textContent=h&&h.hr!=null?'♥ '+h.hr:(r.sb?r.sb[0]:''); sp[1].textContent=h&&h.red>0.05?'roja '+mmss(h.red*60):(r.g?fmt(r.g.dist)+' m':'');
+  });
+  [...box.children].forEach(c=>{if(!keep.has(c.dataset.k))c.remove()});
 }
 
-/* ---------- Sesión ---------- */
+/* ---------- Detalle ---------- */
+function findRow(k){ return buildRows().find(r=>r.key===k); }
+function openDetail(k){ const r=findRow(k); if(!r)return; openRow=k; $('#ov').hidden=false; $('#dName').value=r.label;
+  $('#dTgt').value=pcfg[r.label]&&pcfg[r.label].target||''; $('#dTgt').placeholder=String(cfg.target);
+  $('#dHr').value=pcfg[r.label]&&pcfg[r.label].hrmax||''; $('#dHr').placeholder=String(cfg.hrmax);
+  const sel=$('#dBand'); sel.innerHTML='<option value="">Sin banda</option>'+[...bands.values()].map(b=>'<option value="'+b.key+'">'+b.device.name+(b.label()!==b.device.name?' ('+b.label()+')':'')+'</option>').join(''); sel.value=r.band?r.band.key:'';
+  fillDetail(); }
+function closeDetail(){openRow=null; $('#ov').hidden=true;}
+function fillDetail(){ const r=findRow(openRow); if(!r){closeDetail();return}
+  const g=gpsStats(r.pod,'block'), gs=gpsStats(r.pod,'session'), h=hrStats(r.band,'block'), hs=hrStats(r.band,'session'), [txt,cls]=rowState(r);
+  const c=$('#dChip'); c.textContent=txt; c.className='chip '+cls;
+  const it=[];
+  if(r.pod) it.push(['Dist. bloque',g&&fmt(g.dist),'m'],['Dist. sesión',gs&&fmt(gs.dist),'m'],['Mts x min bloque',g&&fmt(g.mpm),'m/min'],['Velocidad actual',g&&fmt(g.vnow,1),'km/h'],['HSR +18 bloque',g&&fmt(g.hsr),'m'],['Esfuerzos HSR bloque',g&&fmt(g.eff),''],
+    ['Z1 / Z2 / Z3',g&&g.z.slice(0,3).map(x=>fmt(x)).join(' / '),'m'],['Z4 / Z5',g&&g.z.slice(3).map(x=>fmt(x)).join(' / '),'m'],['Pico 1 min',gs&&fmt(gs.pk1),'m/min'],['Pico 3 min',gs&&fmt(gs.pk3),'m/min'],
+    ['% objetivo (sesión)',gs&&fmt(gs.tgt),'%'],['Vel. máx sesión',g&&fmt(g.vmax,1),'km/h'],['Impactos bloque',g&&fmt(g.imp),''],['Power plays bloque',g&&fmt(g.power),'']);
+  if(r.band) it.push(['FC actual',h&&fmt(h.hr),'lpm'],['% FC máx',h&&fmt(h.hrpct),'%'],['FC media bloque',h&&fmt(h.hravg),'lpm'],['Zona roja bloque',h&&mmss(h.red*60),''],['Zona roja sesión',hs&&mmss(hs.red*60),''],['Batería banda',r.band.battery!=null?r.band.battery:null,'%']);
+  it.push(['Acc / Dec / Player Load',null,'post']);
+  $('#dMets').innerHTML=it.map(([l,v,u])=>u==='post'?'<div class="met na"><div class="l">'+l+'</div><div class="v">post-sesión</div></div>':'<div class="met"><div class="l">'+l+'</div><div class="v">'+(v==null||v===''?'–':v)+(u?' <small>'+u+'</small>':'')+'</div></div>').join('');
+  const p=r.pod; $('#dInfo').textContent=[p&&p.id?'Pod '+p.id:'',p&&p.snap?'sesión del pod '+p.snap.session:'',p&&p.respN!=null?'última respuesta '+p.respN+' reg., '+p.respMs+' ms'+(p.narrow===true?' (corta)':p.narrow===false?' (completa)':''):'',p&&p.disc?'cortes pod: '+p.disc:'',p&&p.bad?'descartadas: '+p.bad:'',r.band?'Banda '+r.band.device.name:'',r.band&&r.band.disc?'cortes banda: '+r.band.disc:''].filter(Boolean).join(' · ');
+}
+function renameRow(r,newName){ newName=newName.trim(); if(!newName)return;
+  if(r.pod&&r.pod.id){ names[r.pod.id]=newName; } if(r.band){ names[r.band.bandKey()]=newName; }
+  if(pcfg[r.label]&&r.label!==newName){ pcfg[newName]=pcfg[r.label]; delete pcfg[r.label]; store.set('traklive.player',pcfg); }
+  store.set('traklive.names',names); openRow=newName.toLowerCase(); render(); }
+
+/* ---------- Bloques y sesión ---------- */
+function renderBlocks(){const tb=$('#tblBlocks tbody'); tb.innerHTML=''; $('#noBlocks').hidden=closedBlocks.length>0;
+  for(const r of closedBlocks.slice().reverse()){const tr=document.createElement('tr');
+    [r.jugador,'Bloque '+r.bloque,r.dur,fmt(r.dist),fmt(r.mpm),fmt(r.hsr),fmt(r.eff),fmt(r.vmax,1),fmt(r.hravg),r.red!=null?mmss(r.red*60):'–'].forEach(v=>{const td=document.createElement('td');td.textContent=v;tr.appendChild(td)}); tb.appendChild(tr);}}
+const hms=ms=>{const s=Math.floor(ms/1000);return [Math.floor(s/3600),Math.floor(s/60)%60,s%60].map(x=>String(x).padStart(2,'0')).join(':')};
+function tick(){ const ms=split==='session'?elapsedSession():elapsedBlock(); $('#clock').textContent=hms(ms);
+  $('#clockLbl').textContent=(split==='session'?'Sesión':'Bloque '+block.n)+' · '+{idle:'Sin iniciar',running:'En curso',paused:'En pausa',ended:'Finalizada'}[sess.state]; }
+setInterval(()=>{tick(); render();},1000);
+function updateControls(){ const st=sess.state, play=$('#btnPlay');
+  play.textContent=st==='running'?'❚❚':'▶'; play.setAttribute('aria-label',st==='running'?'Pausar sesión':st==='paused'?'Reanudar sesión':'Iniciar sesión');
+  $('#btnStop').hidden=!(st==='running'||st==='paused'); $('#btnBlock').hidden=st!=='running'; $('#btnOff').hidden=!(st==='ended'&&pods.size>0); tick(); }
 function freezeAll(){ for(const p of pods.values()) if(p.snap) p.pz=snapBase(p); }
+function resetBlockBases(){ for(const p of pods.values())p.base=snapBase(p); for(const b of bands.values())b.base=hrClone(b.acc); }
 function closeBlockRows(){ const dur=hms(elapsedBlock());
-  for(const p of pods.values()){const s=stats(p,'block'); if(s)closedBlocks.push({jugador:p.label(),bloque:block.n,dur,dist:s.dist,mpm:s.mpm,hsr:s.hsr,vmax:s.vmax,imp:s.imp});} }
+  for(const r of buildRows()){ const g=gpsStats(r.pod,'block'), h=hrStats(r.band,'block'); if(g||h) closedBlocks.push({jugador:r.label,bloque:block.n,dur,dist:g?g.dist:null,mpm:g?g.mpm:null,hsr:g?g.hsr:null,eff:g?g.eff:null,vmax:g?g.vmax:null,hravg:h?h.hravg:null,red:h?h.red:null}); } }
 function playPause(){
   const now=Date.now();
   if(sess.state==='running'){ sess.pausedAt=now; freezeAll(); sess.state='paused'; log('Sesión en pausa'); }
   else if(sess.state==='paused'){
-    for(const p of pods.values()){ if(p.pz&&p.snap&&p.pz.session===p.snap.session){ const dd=p.snap.dist-p.pz.dist, di=p.snap.impacts-p.pz.impacts, dh=p.hsr-p.pz.hsr;
-      for(const b of [p.base,p.sbase]) if(b&&b.session===p.snap.session){ b.dist+=dd; b.impacts+=di; b.hsr+=dh; } } delete p.pz; }
+    for(const p of pods.values()){ if(p.pz&&p.snap&&p.pz.session===p.snap.session){ const dd=p.snap.dist-p.pz.dist, di=p.snap.impacts-p.pz.impacts, dp=p.snap.power-p.pz.power;
+      for(const b of [p.base,p.sbase]) if(b&&b.session===p.snap.session){ b.dist+=dd; b.impacts+=di; b.power+=dp; } } delete p.pz; p.pk=[]; }
     const pause=now-sess.pausedAt; block.start+=pause; sess.start+=pause; sess.state='running'; log('Sesión reanudada');
   } else {
-    if(sess.state==='ended')block={n:block.n+1,start:now}; else block={n:1,start:now};
-    sess.start=now; for(const p of pods.values()){ delete p.pz; p.base=snapBase(p); p.sbase=snapBase(p); }
+    block={n:sess.state==='ended'?block.n+1:1,start:now}; sess.start=now;
+    for(const p of pods.values()){ delete p.pz; p.acc=accZero(); p.pk=[]; p.pk1=0; p.pk3=0; p.base=snapBase(p); p.sbase=snapBase(p); }
+    for(const b of bands.values()){ b.acc=hrAccZero(); b.base=hrAccZero(); b.sbase=hrAccZero(); }
     sess.state='running'; keepAwake(); log('Sesión iniciada');
   }
   updateControls(); render();
 }
-function newBlock(){ if(sess.state!=='running')return; closeBlockRows(); for(const p of pods.values())p.base=snapBase(p); block={n:block.n+1,start:Date.now()}; renderBlocks(); updateControls(); render(); }
-function stopSession(){
-  if(sess.state==='paused')sess.endAt=sess.pausedAt; else { sess.endAt=Date.now(); freezeAll(); }
-  sess.state='ended'; closeBlockRows(); renderBlocks(); log('Sesión finalizada'); updateControls(); render();
-}
+function newBlock(){ if(sess.state!=='running')return; closeBlockRows(); resetBlockBases(); block={n:block.n+1,start:Date.now()}; renderBlocks(); updateControls(); render(); }
+function stopSession(){ if(sess.state==='paused')sess.endAt=sess.pausedAt; else { sess.endAt=Date.now(); freezeAll(); }
+  sess.state='ended'; closeBlockRows(); renderBlocks(); log('Sesión finalizada'); updateControls(); render(); }
 let offArm=0;
-async function powerOff(){
-  const btn=$('#btnOff'), real=[...pods.values()].filter(p=>p instanceof Pod);
+async function powerOff(){ const btn=$('#btnOff'), real=[...pods.values()].filter(p=>p instanceof Pod);
   if(Date.now()-offArm>4000){ offArm=Date.now(); btn.textContent='Tocá de nuevo para apagar '+pods.size+' pods'; setTimeout(()=>{btn.textContent='Apagar pods'},4000); return; }
   offArm=0; btn.textContent='Apagando…';
   for(const p of real){ try{ p.reconnecting=true; if(p.cmd) await p.cmd.writeValue(CMD_OFF); log(p.label(),'apagado'); }catch(e){ log(p.label(),'no se pudo apagar:',e.message); } }
-  for(const [k,p] of pods){ p.remove(); pods.delete(k); }
-  btn.textContent='Apagar pods'; updateControls(); render();
-}
+  for(const [k,p] of pods){ p.remove(); pods.delete(k); } btn.textContent='Apagar pods'; updateControls(); render(); }
 
-/* ---------- Acciones ---------- */
+/* ---------- Agregar dispositivos ---------- */
+const looksLikeBand=d=>/polar|h10|h9|h7|hrm|heart|coospo|wahoo|tickr|garmin|verity|magene|decathlon|kalenji|suunto|whoop|moofit|cooper/i.test(d.name||'')&&!/ron|play/i.test(d.name||'');
+async function addDevice(dev){
+  if(pods.has(dev.id)||bands.has('band:'+dev.id)){log('Ese dispositivo ya está en la lista');return}
+  if(looksLikeBand(dev)) return addBandDev(dev);
+  const p=new Pod(dev); pods.set(p.key,p); render(); keepAwake();
+  try{ await p.connect(); }catch(e){ // no es un pod: se prueba como banda
+    p.remove(); pods.delete(p.key); log((dev.name||'Dispositivo'),'no responde como pod, pruebo como banda de FC'); await addBandDev(dev); }
+}
+async function addBandDev(dev){ const b=new Band(dev); bands.set(b.key,b); render(); keepAwake();
+  try{ await b.connect(); }catch(e){ log((dev.name||'Banda'),'no se pudo conectar como banda:',e.message); b.remove(); bands.delete(b.key); render(); } }
 async function addPod(all){
   if(!navigator.bluetooth){$('#noBle').hidden=false;return}
-  try{
-    const opts=all?{acceptAllDevices:true,optionalServices:[SVC,'device_information']}:{filters:[{namePrefix:'RON'},{namePrefix:'Play'},{services:['device_information']}],optionalServices:[SVC,'device_information']};
-    const dev=await navigator.bluetooth.requestDevice(opts);
-    log('Elegido:',dev.name||'(sin nombre)',dev.id);
-    if(pods.has(dev.id)){log('Ese pod ya está en la lista');return}
-    const p=new Pod(dev); pods.set(p.key,p); render(); keepAwake();
-    await p.connect(); refreshSavedButton();
-  }catch(e){ log('No se pudo agregar el pod:',(e&&e.name)||'',(e&&e.message)||e); render(); }
-}
-/* Pods ya autorizados: se conectan todos juntos sin pasar por el selector */
-async function savedDevices(){ try{ if(navigator.bluetooth&&navigator.bluetooth.getDevices) return await navigator.bluetooth.getDevices(); }catch(e){ log('No se pudieron leer los pods guardados:',e.message); } return null; }
-async function refreshSavedButton(){
-  const devs=await savedDevices(); const btn=$('#btnSaved');
-  if(!devs){ btn.hidden=true; return; }
-  const pending=devs.filter(d=>!pods.has(d.id)).length;
-  btn.hidden=devs.length===0; btn.disabled=pending===0;
-  btn.textContent=pending?'Conectar guardados ('+pending+')':'Guardados conectados';
-}
-async function connectSaved(){
-  const devs=await savedDevices(); if(!devs||!devs.length){ log('No hay pods guardados todavía'); return; }
+  try{ const opts=all?{acceptAllDevices:true,optionalServices:[SVC,'device_information','heart_rate','battery_service']}:{filters:[{namePrefix:'RON'},{namePrefix:'Play'},{services:['device_information']}],optionalServices:[SVC,'device_information']};
+    const dev=await navigator.bluetooth.requestDevice(opts); log('Elegido:',dev.name||'(sin nombre)',dev.id); await addDevice(dev); refreshSavedButton();
+  }catch(e){ log('No se pudo agregar:',(e&&e.name)||'',(e&&e.message)||e); render(); } }
+async function addBand(){
+  if(!navigator.bluetooth){$('#noBle').hidden=false;return}
+  try{ const dev=await navigator.bluetooth.requestDevice({filters:[{services:['heart_rate']}],optionalServices:['battery_service']}); log('Banda elegida:',dev.name||'(sin nombre)'); await addBandDev(dev); refreshSavedButton();
+  }catch(e){ log('No se pudo agregar la banda:',(e&&e.name)||'',(e&&e.message)||e); render(); } }
+async function savedDevices(){ try{ if(navigator.bluetooth&&navigator.bluetooth.getDevices) return await navigator.bluetooth.getDevices(); }catch(e){ log('No se pudieron leer los dispositivos guardados:',e.message); } return null; }
+async function refreshSavedButton(){ const devs=await savedDevices(); const btn=$('#btnSaved'); if(!devs){btn.hidden=true;return}
+  const pending=devs.filter(d=>!pods.has(d.id)&&!bands.has('band:'+d.id)).length; btn.hidden=devs.length===0; btn.disabled=pending===0; btn.textContent=pending?'Conectar guardados ('+pending+')':'Guardados conectados'; }
+async function connectSaved(){ const devs=await savedDevices(); if(!devs||!devs.length){log('No hay dispositivos guardados todavía');return}
   const btn=$('#btnSaved'); btn.disabled=true; btn.textContent='Conectando…'; keepAwake();
-  let ok=0, fail=0; const todo=devs.filter(d=>!pods.has(d.id));
-  await Promise.all(todo.map((dev,i)=>new Promise(res=>setTimeout(async()=>{
-    const p=new Pod(dev); pods.set(p.key,p); render();
-    try{ await p.connect(); ok++; }catch(e){ fail++; log((dev.name||'Pod'),'guardado no responde (¿apagado o lejos?):',e.message); p.remove(); pods.delete(p.key); render(); }
-    res(); },i*400))));
-  log('Pods guardados: '+ok+' conectados'+(fail?', '+fail+' sin respuesta':''));
-  refreshSavedButton(); render();
-}
-function toCsv(rows){if(!rows.length)return'';const cols=Object.keys(rows[0]);return [cols.join(',')].concat(rows.map(r=>cols.map(c=>{const v=String(r[c]??'');return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(','))).join('\n');}
+  const todo=devs.filter(d=>!pods.has(d.id)&&!bands.has('band:'+d.id));
+  await Promise.all(todo.map((dev,i)=>new Promise(res=>setTimeout(async()=>{ try{ await addDevice(dev); }catch(e){} res(); },i*400))));
+  log('Guardados: '+pods.size+' pods y '+bands.size+' bandas conectados'); refreshSavedButton(); render(); }
+
+/* ---------- CSV, demo, nombres, ajustes ---------- */
+function toCsv(rows){ if(!rows.length)return''; const cols=[...new Set(rows.flatMap(r=>Object.keys(r)))]; return [cols.join(',')].concat(rows.map(r=>cols.map(c=>{const v=String(r[c]??'');return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(','))).join('\n'); }
 async function exportCsv(){
-  const csv=toCsv(history)+(closedBlocks.length?'\n\n'+toCsv(closedBlocks):'');
-  if(!csv){log('Todavía no hay datos para exportar');return}
+  const csv=toCsv(history)+(closedBlocks.length?'\n\n'+toCsv(closedBlocks):''); if(!csv){log('Todavía no hay datos para exportar');return}
   const name='traklive_'+new Date().toISOString().slice(0,16).replace(/[:T]/g,'-')+'.csv';
   try{const f=new File([csv],name,{type:'text/csv'}); if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:name});return}}catch(e){}
   try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=name;document.body.appendChild(a);a.click();a.remove();}catch(e){}
-  try{await navigator.clipboard.writeText(csv);log('CSV copiado al portapapeles ('+history.length+' filas)')}catch(e){}
-}
+  try{await navigator.clipboard.writeText(csv);log('CSV copiado al portapapeles ('+history.length+' filas)')}catch(e){} }
 function demo(){
-  if([...pods.keys()].some(k=>k.startsWith('demo'))){for(const [k,p] of pods)if(k.startsWith('demo')){p.remove();pods.delete(k)} render();return}
-  for(let i=0;i<17;i++){const p=new FakePod(i);pods.set(p.key,p);p.connect();}
+  if([...pods.keys()].some(k=>k.startsWith('demo'))){ for(const [k,p] of pods)if(k.startsWith('demo')){p.remove();pods.delete(k)} for(const [k,b] of bands)if(k.startsWith('demo')){b.remove();bands.delete(k)} render(); return; }
+  for(let i=0;i<17;i++){ const p=new FakePod(i); pods.set(p.key,p); p.connect(); if(i!==3){ const b=new FakeBand(i,p); bands.set(b.key,b); b.connect(); } }
 }
 async function keepAwake(){try{if('wakeLock' in navigator&&!wakeLock){wakeLock=await navigator.wakeLock.request('screen');wakeLock.addEventListener('release',()=>wakeLock=null)}}catch(e){}}
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&pods.size)keepAwake()});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&(pods.size||bands.size))keepAwake()});
+function namesJson(){ const o={}; for(const p of pods.values()) if(p.id&&!String(p.id).startsWith('DEMO')&&!names[p.id]) o[p.id]=''; for(const b of bands.values()) if(!String(b.key).startsWith('demo')&&!names[b.bandKey()]) o[b.bandKey()]='';
+  Object.assign(o,names); for(const k of Object.keys(o)) if(/DEMO/.test(k))delete o[k]; return JSON.stringify(o,null,2); }
+function openCfg(){ ['cZ1','cZ2','cZ3','cZ4'].forEach((id,i)=>$('#'+id).value=cfg.zones[i]); $('#cTgt').value=cfg.target; $('#cHr').value=cfg.hrmax; $('#cMsg').textContent=''; $('#ovCfg').hidden=false; }
+function saveCfg(){ const z=['cZ1','cZ2','cZ3','cZ4'].map(id=>+$('#'+id).value); if(z.some(x=>!(x>0))||z.some((x,i)=>i&&x<=z[i-1])){ $('#cMsg').textContent='Los cortes tienen que ir de menor a mayor'; return; }
+  cfg.zones=z; cfg.target=Math.max(100,+$('#cTgt').value||5000); cfg.hrmax=Math.min(240,Math.max(120,+$('#cHr').value||195)); store.set('traklive.cfg',cfg); $('#ovCfg').hidden=true; noteFor(); render(); }
 
+/* ---------- Eventos ---------- */
 $('#btnAdd').addEventListener('click',()=>addPod(false));
-$('#btnSaved').addEventListener('click',connectSaved);
+$('#btnAddHr').addEventListener('click',addBand);
 $('#btnAddAll').addEventListener('click',()=>addPod(true));
+$('#btnSaved').addEventListener('click',connectSaved);
 $('#btnPlay').addEventListener('click',playPause);
 $('#btnStop').addEventListener('click',stopSession);
 $('#btnBlock').addEventListener('click',newBlock);
 $('#btnOff').addEventListener('click',powerOff);
 $('#btnCsv').addEventListener('click',exportCsv);
 $('#btnDemo').addEventListener('click',demo);
+$('#btnCfg').addEventListener('click',openCfg);
+$('#cCancel').addEventListener('click',()=>{$('#ovCfg').hidden=true});
+$('#cSave').addEventListener('click',saveCfg);
+$('#ovCfg').addEventListener('click',e=>{if(e.target.id==='ovCfg')$('#ovCfg').hidden=true});
 $('#selInt').addEventListener('change',e=>{intervalS=+e.target.value;store.set('traklive.int',intervalS)});
-$('#selMetric').addEventListener('change',e=>{metric=e.target.value; store.set('traklive.metric',metric); $('#mnote').textContent=NOTES[metric]||''; render();});
+$('#selMetric').addEventListener('change',e=>{metric=e.target.value; store.set('traklive.metric',metric); if(view==='hr'){view='list';$('#selView').value='list';store.set('traklive.view',view);} noteFor(); render();});
 $('#selSplit').addEventListener('change',e=>{split=e.target.value; store.set('traklive.split',split); tick(); render();});
 $('#selSort').addEventListener('change',e=>{sortMode=e.target.value; store.set('traklive.sort',sortMode); render();});
-$('#btnSelAll').addEventListener('click',()=>{const all=[...pods.values()].every(p=>p.on); for(const p of pods.values())p.on=!all||false; if(!all)for(const p of pods.values())p.on=true; render();});
-$('#dName').addEventListener('change',()=>{const p=pods.get(openKey); if(p&&p.id){names[p.id]=$('#dName').value.trim();store.set('traklive.names',names);render();}});
+$('#selView').addEventListener('change',e=>{view=e.target.value; store.set('traklive.view',view); noteFor(); render();});
+$('#btnSelAll').addEventListener('click',()=>{ const rows=buildRows(); if(rows.every(r=>r.on)) rows.forEach(r=>offRows.add(r.label)); else offRows.clear(); store.set('traklive.off',[...offRows]); render(); });
+$('#dName').addEventListener('change',()=>{ const r=findRow(openRow); if(r)renameRow(r,$('#dName').value); });
+$('#dTgt').addEventListener('change',()=>{ const r=findRow(openRow); if(!r)return; const v=+$('#dTgt').value; pcfg[r.label]=Object.assign({},pcfg[r.label],{target:v>0?v:undefined}); store.set('traklive.player',pcfg); render(); });
+$('#dHr').addEventListener('change',()=>{ const r=findRow(openRow); if(!r)return; const v=+$('#dHr').value; pcfg[r.label]=Object.assign({},pcfg[r.label],{hrmax:v>0?v:undefined}); store.set('traklive.player',pcfg); render(); });
+$('#dBand').addEventListener('change',()=>{ const r=findRow(openRow); if(!r)return; const key=$('#dBand').value;
+  if(r.band&&r.band.key!==key){ delete names[r.band.bandKey()]; }
+  if(key){ const b=bands.get(key); if(b) names[b.bandKey()]=r.label; }
+  store.set('traklive.names',names); render(); });
 $('#dClose').addEventListener('click',closeDetail);
-function namesJson(){ const o={}; for(const p of pods.values()) if(p.id&&!String(p.id).startsWith('DEMO')&&!names[p.id]) o[p.id]=''; Object.assign(o,names); for(const k of Object.keys(o)) if(String(k).startsWith('DEMO'))delete o[k]; return JSON.stringify(o,null,2); }
+$('#ov').addEventListener('click',e=>{if(e.target.id==='ov')closeDetail()});
+$('#dRemove').addEventListener('click',()=>{ const r=findRow(openRow); if(r){ if(r.pod){r.pod.remove();pods.delete(r.pod.key);} if(r.band){r.band.remove();bands.delete(r.band.key);} } closeDetail(); render(); refreshSavedButton(); });
 $('#btnNames').addEventListener('click',()=>{ $('#nText').value=namesJson(); $('#nSrc').textContent=rosterInfo; $('#nMsg').textContent=''; $('#ovN').hidden=false; });
 $('#nClose').addEventListener('click',()=>{$('#ovN').hidden=true});
 $('#ovN').addEventListener('click',e=>{if(e.target.id==='ovN')$('#ovN').hidden=true});
 $('#nCopy').addEventListener('click',async()=>{ const t=$('#nText'); try{ await navigator.clipboard.writeText(t.value); $('#nMsg').textContent='Copiado'; }catch(e){ t.focus(); t.select(); $('#nMsg').textContent='Seleccionado: copialo con el menú del sistema'; } });
 $('#nApply').addEventListener('click',()=>{ try{ const j=JSON.parse($('#nText').value); for(const [k,v] of Object.entries(j)){ if(typeof v==='string'){ if(v.trim())names[k]=v.trim(); else delete names[k]; } } store.set('traklive.names',names); $('#nMsg').textContent='Nombres aplicados en este dispositivo'; render(); }catch(e){ $('#nMsg').textContent='El texto no tiene el formato correcto'; } });
-$('#ov').addEventListener('click',e=>{if(e.target.id==='ov')closeDetail()});
-$('#dRemove').addEventListener('click',()=>{const p=pods.get(openKey); if(p){p.remove();pods.delete(openKey);} closeDetail(); render();});
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&openKey)closeDetail()});
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeDetail(); $('#ovN').hidden=true; $('#ovCfg').hidden=true; } });
 if(!navigator.bluetooth)$('#noBle').hidden=false;
-window.__traklive={parseSnapshots,expectedLen,ingest,stats};
+window.__traklive={parseSnapshots,expectedLen,ingest,gpsStats,feedHr};
 buildMetricSelect(); updateControls(); render(); renderBlocks(); refreshSavedButton(); loadRoster();
 })();
 </script>
