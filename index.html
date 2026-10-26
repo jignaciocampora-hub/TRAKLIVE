@@ -471,16 +471,46 @@ class AntStick{
     await this.dev.open(); if(!this.dev.configuration) await this.dev.selectConfiguration(1);
     const itf=this.dev.configuration.interfaces[0]; await this.dev.claimInterface(itf.interfaceNumber);
     const eps=itf.alternate.endpoints; this.epIn=eps.find(e=>e.direction==='in').endpointNumber; this.epOut=eps.find(e=>e.direction==='out').endpointNumber;
-    this.open_=true; this.rx=[]; this.readLoop();
+    this.open_=true; this.rx=[]; this.msgs=0; this.seen=new Map(); this.readLoop();
+    this.name=this.dev.productName||'Antena ANT+'; log('Antena abierta:',this.name);
+    await this.startScan();
+    this.watch=setTimeout(()=>{ if(this.open_&&this.msgs===0){ log('ANT+: en 12 s no llegó ninguna señal en modo escaneo; paso a escuchar banda por banda'); this.startChannels(); } },12000);
+    this.diag=setInterval(()=>{ if(this.open_) log('ANT+: señales recibidas',this.msgs,'· dispositivos vistos:',[...this.seen.entries()].map(([k,v])=>k+' (tipo '+v+')').join(', ')||'ninguno'); },15000);
+  }
+  async startScan(){
     const wait=ms=>new Promise(r=>setTimeout(r,ms));
-    await this.send(0x4A,[0x00]); await wait(600);             // reinicio
-    await this.send(0x46,[0x00,...ANT_KEY]); await wait(80);   // clave de red ANT+
-    await this.send(0x42,[0x00,0x00,0x00]); await wait(80);    // canal 0, recepción
-    await this.send(0x51,[0x00,0x00,0x00,120,0x00]); await wait(80); // cualquier banda de FC (tipo 120)
-    await this.send(0x45,[0x00,57]); await wait(80);           // frecuencia ANT+ 2457 MHz
-    await this.send(0x66,[0x00,0x01]); await wait(80);         // mensajes con número de banda
-    await this.send(0x5B,[0x00]); await wait(80);              // escaneo continuo: escucha todas las bandas
-    log('Antena ANT+ lista: escuchando bandas de FC'); this.name=this.dev.productName||'Antena ANT+';
+    this.mode='scan';
+    await this.send(0x4A,[0x00]); await wait(700);             // reinicio
+    await this.send(0x4D,[0x00,0x54]); await wait(120);        // pedir capacidades
+    await this.send(0x46,[0x00,...ANT_KEY]); await wait(100);  // clave de red ANT+
+    await this.send(0x42,[0x00,0x00,0x00]); await wait(100);   // canal 0, recepción
+    await this.send(0x51,[0x00,0x00,0x00,0x00,0x00]); await wait(100); // cualquier dispositivo (para diagnóstico)
+    await this.send(0x45,[0x00,57]); await wait(100);          // frecuencia ANT+ 2457 MHz
+    await this.send(0x66,[0x00,0x01]); await wait(100);        // mensajes con número de dispositivo
+    await this.send(0x5B,[0x00]); await wait(100);             // escaneo continuo
+    log('ANT+: escuchando en modo escaneo (todas las bandas a la vez)');
+  }
+  async startChannels(){ // alternativa: un canal por banda, emparejando con la primera que encuentre
+    const wait=ms=>new Promise(r=>setTimeout(r,ms));
+    this.mode='channels'; const n=Math.max(1,Math.min(8,this.maxCh||8));
+    await this.send(0x4A,[0x00]); await wait(700);
+    await this.send(0x46,[0x00,...ANT_KEY]); await wait(100);
+    await this.send(0x66,[0x00,0x01]); await wait(100);
+    this.chFree=[]; for(let c=0;c<n;c++)this.chFree.push(c);
+    this.openNextChannel();
+  }
+  async openNextChannel(){
+    if(!this.chFree||!this.chFree.length){ log('ANT+: no quedan canales libres en la antena'); return; }
+    const c=this.chFree.shift(), wait=ms=>new Promise(r=>setTimeout(r,ms)); this.searching=c;
+    await this.send(0x42,[c,0x00,0x00]); await wait(80);
+    await this.send(0x51,[c,0x00,0x00,120,0x00]); await wait(80);   // cualquier banda de FC
+    await this.send(0x43,[c,0x86,0x1F]); await wait(80);            // período 8070 (4 Hz)
+    await this.send(0x45,[c,57]); await wait(80);
+    await this.send(0x44,[c,0xFF]); await wait(80);                 // búsqueda sin límite de tiempo
+    if(this.paired&&this.paired.size){ // excluir bandas ya emparejadas
+      let i=0; for(const num of [...this.paired].slice(-4)){ await this.send(0x59,[c,num&255,num>>8,120,0x00,i++]); await wait(60); }
+      await this.send(0x5A,[c,i,0x01]); await wait(60); }
+    await this.send(0x4B,[c]); log('ANT+: canal',c,'buscando una banda…');
   }
   async send(id,data){ const b=[0xA4,data.length,id,...data]; let cs=0; for(const x of b)cs^=x; b.push(cs); await this.dev.transferOut(this.epOut,new Uint8Array(b)); }
   async readLoop(){
@@ -495,13 +525,25 @@ class AntStick{
       if(q[0]!==0xA4){ q.shift(); continue; }
       const len=q[1]; if(q.length<len+4)break;
       const msg=q.splice(0,len+4), id=msg[2], d=msg.slice(3,3+len);
-      if((id===0x4E||id===0x4F||id===0x50)&&d.length>=13&&(d[9]&0x80)){
-        const num=d[10]|(d[11]<<8), type=d[12]&0x7F;
-        if(type===120&&!antIgnore.has(num)) antHr(num,d[8]);
-      }
+      if(id===0x4E||id===0x4F||id===0x50){
+        this.msgs++;
+        if(d.length>=13&&(d[9]&0x80)){
+          const num=d[10]|(d[11]<<8), type=d[12]&0x7F;
+          if(!this.seen.has(num)){ this.seen.set(num,type); log('ANT+: dispositivo',num,'tipo',type,type===120?'(banda de FC)':'(no es banda de FC)'); }
+          if(type===120){
+            if(this.mode==='channels'){ this.paired=this.paired||new Set(); if(!this.paired.has(num)){ this.paired.add(num); log('ANT+: canal',d[0],'emparejado con la banda',num); if(this.searching===d[0]){ this.searching=null; this.openNextChannel(); } } }
+            if(!antIgnore.has(num)) antHr(num,d[8]);
+          }
+        } else if(!this.warnNoExt){ this.warnNoExt=true; log('ANT+: llegan señales sin número de dispositivo (la antena no envía mensajes extendidos)'); }
+      } else if(id===0x40){ // respuesta o evento de canal
+        const [ch,mid,code]=d;
+        if(mid!==1&&code!==0) log('ANT+: la antena rechazó la orden 0x'+mid.toString(16)+' (código '+code+')');
+        if(mid===1&&code===8&&this.mode==='channels'){ log('ANT+: canal',ch,'dejó de recibir'); }
+      } else if(id===0x54){ this.maxCh=d[0]; log('ANT+: la antena tiene',d[0],'canales; opciones',d.slice(2).map(x=>x.toString(16)).join(' ')); }
+      else if(id===0x6F){ log('ANT+: la antena se reinició'); }
     }
   }
-  async close(){ this.open_=false; try{ await this.dev.close(); }catch(e){} }
+  async close(){ this.open_=false; clearTimeout(this.watch); clearInterval(this.diag); try{ await this.dev.close(); }catch(e){} }
 }
 let antStick=null;
 function antHr(num,hr){ let b=bands.get('ant:'+num); if(!b){ b=new AntBand(num); bands.set(b.key,b); log('Banda ANT+ detectada:',num); } feedHr(b,hr); }
